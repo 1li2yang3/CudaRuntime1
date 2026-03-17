@@ -5,12 +5,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// 轨迹点结构体
+
 struct Point {
     float x, y;
 };
 
-// 专业的错误检查宏
+
 #define CHECK(call)                                   \
 do {                                                  \
     const cudaError_t error = call;                   \
