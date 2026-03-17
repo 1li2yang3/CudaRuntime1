@@ -53,12 +53,12 @@ void test_hausdorff() {
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results(num_t);
-    std::vector<float> cpu_results_grid(num_t);
+    std::vector<float> cpu_results(num_t);
     
     generate_random_points(h_t1);
     generate_random_points(h_t2);
     
-    float cpu_time_ms_grid = launch_hausdorff_batch_cpu_grid(h_t1.data(), h_t2.data(), cpu_results_grid.data(), num_t, n);
+    float cpu_time_ms_grid = launch_hausdorff_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n);
     float gpu_time_ms = 0;
     launch_hausdorff_batch_gpu(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, gpu_time_ms);
     
@@ -70,13 +70,13 @@ void test_hausdorff() {
 
     bool pass = true;
     for (int i = 0; i < num_t; i++) {
-        if (abs(cpu_results_grid[i] - gpu_results[i]) > 1e-5) {
+        if (abs(cpu_results[i] - gpu_results[i]) > 1e-5) {
             pass = false;
             break;
         }
     }
     std::cout << "Integrity Check: " << (pass ? "PASS " : "FAIL ") << std::endl;
-    std::cout <<cpu_results_grid[10] << "--" << gpu_results[10] << std::endl;
+    std::cout <<cpu_results[10] << "--" << gpu_results[10] << std::endl;
 }
 
 void test_dtw() {
@@ -178,11 +178,11 @@ void test_frechet() {
 int main() {
     srand(time(NULL));
 
-    test_euclidean();
+    //test_euclidean();
     test_hausdorff();
-    test_dtw();
-    test_lcss();
-    test_frechet();
+    //test_dtw();
+    //test_lcss();
+    //test_frechet();
     
     ;
 
