@@ -96,7 +96,6 @@ __global__ void hausdorff_tiled_kernel(const Point* t1_batch, const Point* t2_ba
     }
 }
 
-
 void launch_hausdorff_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_results, int num_t, int n, float& gpu_time) {
     cudaEvent_t start_all, stop_all;
     float time_all = 0.0f;
@@ -104,49 +103,43 @@ void launch_hausdorff_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_r
     CHECK(cudaEventCreate(&stop_all));
     CHECK(cudaEventRecord(start_all));
 
-    const int CHUNK_SIZE = 5000;
-    Point* d_t1 = nullptr, * d_t2 = nullptr;
+    Point* d_t1 = nullptr;
+    Point* d_t2 = nullptr;
     float* d_results = nullptr;
 
-    size_t chunk_points = (size_t)CHUNK_SIZE * n;
-    CHECK(cudaMalloc(&d_t1, chunk_points * sizeof(Point)));
-    CHECK(cudaMalloc(&d_t2, chunk_points * sizeof(Point)));
-    CHECK(cudaMalloc(&d_results, CHUNK_SIZE * sizeof(float)));
+    size_t total_points = (size_t)num_t * n;
 
-    gpu_time = 0.0f;
+    CHECK(cudaMalloc(&d_t1, total_points * sizeof(Point)));
+    CHECK(cudaMalloc(&d_t2, total_points * sizeof(Point)));
+    CHECK(cudaMalloc(&d_results, num_t * sizeof(float)));
 
-    for (int offset = 0; offset < num_t; offset += CHUNK_SIZE) {
-        int current_chunk = (offset + CHUNK_SIZE > num_t) ? (num_t - offset) : CHUNK_SIZE;
-        size_t current_points = (size_t)current_chunk * n;
+    CHECK(cudaMemcpy(d_t1, h_t1, total_points * sizeof(Point), cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(d_t2, h_t2, total_points * sizeof(Point), cudaMemcpyHostToDevice));
 
-        CHECK(cudaMemcpy(d_t1, h_t1 + (offset * n), current_points * sizeof(Point), cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(d_t2, h_t2 + (offset * n), current_points * sizeof(Point), cudaMemcpyHostToDevice));
+    cudaEvent_t start, stop;
+    CHECK(cudaEventCreate(&start));
+    CHECK(cudaEventCreate(&stop));
+    CHECK(cudaEventRecord(start));
 
-        cudaEvent_t start, stop;
-        float elapsed = 0.0f;
-        CHECK(cudaEventCreate(&start));
-        CHECK(cudaEventCreate(&stop));
-        CHECK(cudaEventRecord(start));
+    hausdorff_tiled_kernel << <num_t, 256 >> > (d_t1, d_t2, d_results, num_t, n);
+    CHECK(cudaGetLastError());
 
-        hausdorff_tiled_kernel << <current_chunk, 256 >> > (d_t1, d_t2, d_results, current_chunk, n);
-        CHECK(cudaGetLastError());
+    CHECK(cudaEventRecord(stop));
+    CHECK(cudaEventSynchronize(stop));
+    CHECK(cudaEventElapsedTime(&gpu_time, start, stop));
 
-        CHECK(cudaEventRecord(stop));
-        CHECK(cudaEventSynchronize(stop));
-        CHECK(cudaEventElapsedTime(&elapsed, start, stop));
-        gpu_time += elapsed;
+    CHECK(cudaMemcpy(h_results, d_results, num_t * sizeof(float), cudaMemcpyDeviceToHost));
 
-        CHECK(cudaMemcpy(h_results + offset, d_results, current_chunk * sizeof(float), cudaMemcpyDeviceToHost));
-
-        cudaEventDestroy(start);
-        cudaEventDestroy(stop);
-    }
-
-    cudaFree(d_t1); cudaFree(d_t2); cudaFree(d_results);
+    cudaFree(d_t1);
+    cudaFree(d_t2);
+    cudaFree(d_results);
 
     CHECK(cudaEventRecord(stop_all));
     CHECK(cudaEventSynchronize(stop_all));
     CHECK(cudaEventElapsedTime(&time_all, start_all, stop_all));
-    std::cout << "\n计算时间占比" << gpu_time / time_all;
-    gpu_time = time_all;
+
+    std::cout << "\n计算时间占比: " << gpu_time / time_all;
+    gpu_time = time_all; 
+
+
 }

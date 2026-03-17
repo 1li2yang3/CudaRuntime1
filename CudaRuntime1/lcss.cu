@@ -75,7 +75,7 @@ __global__ void lcss_wavefront_kernel(const Point* __restrict__ t1_raw,const Poi
 }
 
 void launch_lcss_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, float* h_results,
-int num_t, int n, float epsilon, float& gpu_time) {
+    int num_t, int n, float epsilon, float& gpu_time) {
     cudaEvent_t start_all, stop_all;
     float time_all = 0.0f;
     CHECK(cudaEventCreate(&start_all));
