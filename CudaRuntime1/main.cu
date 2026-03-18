@@ -145,8 +145,8 @@ void test_lcss() {
 }
 
 void test_frechet() {
-    const int num_t = 1000;
-    const int n = 1000;
+    const int num_t = 700;
+    const int n = 1100;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results_wavefront(num_t);
@@ -180,9 +180,9 @@ int main() {
 
     //test_euclidean();
     //test_hausdorff();
-    test_dtw();
+    //test_dtw();
     //test_lcss();
-    //test_frechet();
+    test_frechet();
     
     ;
 
