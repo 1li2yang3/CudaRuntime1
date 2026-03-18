@@ -48,8 +48,8 @@ void test_euclidean() {
 }
 
 void test_hausdorff() {
-    const int num_t = 1000;  
-    const int n = 1500;      
+    const int num_t = 2000;  
+    const int n = 2000;      
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results(num_t);
@@ -80,8 +80,8 @@ void test_hausdorff() {
 }
 
 void test_dtw() {
-    const int num_t = 800; 
-    const int n = 800;    
+    const int num_t = 500; 
+    const int n = 1000;    
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results(num_t);
@@ -179,8 +179,8 @@ int main() {
     srand(time(NULL));
 
     //test_euclidean();
-    test_hausdorff();
-    //test_dtw();
+    //test_hausdorff();
+    test_dtw();
     //test_lcss();
     //test_frechet();
     

@@ -8,54 +8,45 @@
 #include <cuda_awbarrier.h>
 #include <iostream>
 
-
-__global__ void dtw_kernel_wavefront(const Point* t1_raw, const Point* t2_raw, float* results, int num_t, int n) {
+__global__ void dtw_kernel_global(const Point* t1_raw, const Point* t2_raw, float* results, float* global_dp, int num_t, int n) {
     int bid = blockIdx.x;
     if (bid >= num_t) return;
-
-    extern __shared__ char s_mem[];
-
-    Point* s_t1 = (Point*)s_mem;
-    Point* s_t2 = (Point*)(s_mem + n * sizeof(Point));
-
-    float* d0 = (float*)(s_mem + 2 * n * sizeof(Point));
-    float* d1 = (float*)(s_mem + 2 * n * sizeof(Point) + (n + 1) * sizeof(float));
-    float* d2 = (float*)(s_mem + 2 * n * sizeof(Point) + 2 * (n + 1) * sizeof(float));
+    size_t block_offset = (size_t)bid * 3 * (n + 1);
+    float* d0 = global_dp + block_offset;
+    float* d1 = global_dp + block_offset + (n + 1);
+    float* d2 = global_dp + block_offset + 2 * (n + 1);
 
     int tid = threadIdx.x;
-
-    for (int i = tid; i < n; i += blockDim.x) {
-        s_t1[i] = t1_raw[bid * n + i];
-        s_t2[i] = t2_raw[bid * n + i];
-    }
 
     for (int i = tid; i <= n; i += blockDim.x) {
         d0[i] = 1e20f;
         d1[i] = 1e20f;
         d2[i] = 1e20f;
     }
-    __syncthreads();
+    __syncthreads(); 
 
     if (tid == 0) {
-        d0[0] = 0.0f; 
+        d0[0] = 0.0f;
     }
     __syncthreads();
 
     for (int k = 2; k <= 2 * n; k++) {
-
         int i_start = max(1, k - n);
         int i_end = min(n, k - 1);
 
         for (int i = i_start + tid; i <= i_end; i += blockDim.x) {
             int j = k - i;
 
-            float dx = s_t1[i - 1].x - s_t2[j - 1].x;
-            float dy = s_t1[i - 1].y - s_t2[j - 1].y;
-            float cost = __fsqrt_rn(dx * dx + dy * dy); 
+            Point p1 = t1_raw[bid * n + (i - 1)];
+            Point p2 = t2_raw[bid * n + (j - 1)];
 
-            float diag = d0[i - 1]; 
-            float up = d1[i - 1];   
-            float left = d1[i];     
+            float dx = p1.x - p2.x;
+            float dy = p1.y - p2.y;
+            float cost = sqrtf(dx * dx + dy * dy);
+
+            float diag = d0[i - 1];
+            float up = d1[i - 1];
+            float left = d1[i];
 
             d2[i] = cost + fminf(diag, fminf(up, left));
         }
@@ -69,7 +60,7 @@ __global__ void dtw_kernel_wavefront(const Point* t1_raw, const Point* t2_raw, f
         d1 = d2;
         d2 = temp;
 
-        for (int i = tid; i <= n; i += blockDim.x) {
+        for (int i = i_start + tid; i <= i_end; i += blockDim.x) {
             d2[i] = 1e20f;
         }
         __syncthreads();
@@ -80,6 +71,7 @@ __global__ void dtw_kernel_wavefront(const Point* t1_raw, const Point* t2_raw, f
     }
 }
 
+
 void launch_dtw_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_results, int num_t, int n, float& gpu_time) {
     cudaEvent_t start_all, stop_all;
     float time_all = 0.0f;
@@ -87,35 +79,28 @@ void launch_dtw_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_results
     CHECK(cudaEventCreate(&stop_all));
     CHECK(cudaEventRecord(start_all));
 
-    size_t shared_mem_bytes = (n * 2 * sizeof(Point)) + ((n + 1) * 3 * sizeof(float));
-
-    if (shared_mem_bytes > 100 * 1024) {
-        std::cerr << "Error: n is too large (" << n << "). Shared memory limit exceeded!" << std::endl;
-        return;
-    }
-
-    size_t traj_size = num_t * n * sizeof(Point);
-    Point* d_t1_raw, * d_t2_raw;
+    size_t traj_size = (size_t)num_t * n * sizeof(Point);
+    size_t global_dp_size = (size_t)num_t * 3 * (n + 1) * sizeof(float);
+    Point* d_t1, * d_t2;
     float* d_results;
+    float* d_global_dp; 
 
-    CHECK(cudaMalloc(&d_t1_raw, traj_size));
-    CHECK(cudaMalloc(&d_t2_raw, traj_size));
+    CHECK(cudaMalloc(&d_t1, traj_size));
+    CHECK(cudaMalloc(&d_t2, traj_size));
     CHECK(cudaMalloc(&d_results, num_t * sizeof(float)));
+    CHECK(cudaMalloc(&d_global_dp, global_dp_size)); 
 
-    CHECK(cudaMemcpy(d_t1_raw, h_t1, traj_size, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(d_t2_raw, h_t2, traj_size, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(d_t1, h_t1, traj_size, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(d_t2, h_t2, traj_size, cudaMemcpyHostToDevice));
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start); cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-    cudaFuncSetAttribute(dtw_kernel_wavefront,cudaFuncAttributeMaxDynamicSharedMemorySize,shared_mem_bytes);
-
-    int threadsPerBlock = (n < 256) ? n : 256;
+    int threadsPerBlock = (n < 256) ? ((n / 32 + 1) * 32) : 256;
     int blocksPerGrid = num_t;
 
-    dtw_kernel_wavefront << <blocksPerGrid, threadsPerBlock, shared_mem_bytes >> > (
-        d_t1_raw, d_t2_raw, d_results, num_t, n);
+    dtw_kernel_global << <blocksPerGrid, threadsPerBlock >> > (d_t1, d_t2, d_results, d_global_dp, num_t, n);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
@@ -123,9 +108,10 @@ void launch_dtw_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_results
 
     CHECK(cudaMemcpy(h_results, d_results, num_t * sizeof(float), cudaMemcpyDeviceToHost));
 
-    cudaFree(d_t1_raw);
-    cudaFree(d_t2_raw);
+    cudaFree(d_t1);
+    cudaFree(d_t2);
     cudaFree(d_results);
+    cudaFree(d_global_dp); 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 
@@ -134,6 +120,7 @@ void launch_dtw_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_results
     CHECK(cudaEventElapsedTime(&time_all, start_all, stop_all));
     cudaEventDestroy(start_all);
     cudaEventDestroy(stop_all);
+
     std::cout << "\n计算时间占比: " << gpu_time / time_all;
     gpu_time = time_all;
 

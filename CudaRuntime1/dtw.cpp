@@ -7,7 +7,7 @@
 
 float launch_dtw_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_results, int num_t, int n) {
     auto start = std::chrono::high_resolution_clock::now();
-#pragma omp parallel for
+#pragma omp parallel for//启动多线程并行计算
     for (int k = 0; k < num_t; k++) {
         int offset = k * n;
         std::vector<std::vector<float>> dp(n + 1, std::vector<float>(n + 1, 1e20f));

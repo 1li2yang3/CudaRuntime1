@@ -3,28 +3,18 @@
 #include <math.h>
 #include <iostream>
 
-
-__global__ void lcss_wavefront_kernel(const Point* __restrict__ t1_raw,const Point* __restrict__ t2_raw,float* __restrict__ results,
+__global__ void lcss_wavefront_kernel(const Point* __restrict__ t1_raw, const Point* __restrict__ t2_raw,
+    float* __restrict__ results, int* __restrict__ global_diagonals_flat,
     int num_t, int n, float epsilon) {
+
     int pair_idx = blockIdx.x;
     if (pair_idx >= num_t) return;
 
-    extern __shared__ char s_mem[];
-
-    Point* s_t1 = (Point*)s_mem;
-
-    Point* s_t2 = (Point*)&s_t1[n];
-
-    int* diagonals_flat = (int*)&s_t2[n];
+    int* diagonals_flat = &global_diagonals_flat[pair_idx * 3 * n];
 
     int tid = threadIdx.x;
     int bdim = blockDim.x;
 
-    for (int i = tid; i < n; i += bdim) {
-        s_t1[i] = t1_raw[pair_idx * n + i];
-        s_t2[i] = t2_raw[pair_idx * n + i];
-    }
-    __syncthreads();
 
     for (int k = 2; k <= 2 * n; k++) {
         int curr_buf = k % 3;
@@ -39,8 +29,8 @@ __global__ void lcss_wavefront_kernel(const Point* __restrict__ t1_raw,const Poi
             int i = start_i - idx;
             int j = k - i;
 
-            float dx = fabsf(s_t1[i - 1].x - s_t2[j - 1].x);
-            float dy = fabsf(s_t1[i - 1].y - s_t2[j - 1].y);
+            float dx = fabsf(t1_raw[pair_idx * n + i - 1].x - t2_raw[pair_idx * n + j - 1].x);
+            float dy = fabsf(t1_raw[pair_idx * n + i - 1].y - t2_raw[pair_idx * n + j - 1].y);
             bool match = (dx < epsilon) && (dy < epsilon);
 
             int val = 0;
@@ -76,26 +66,27 @@ __global__ void lcss_wavefront_kernel(const Point* __restrict__ t1_raw,const Poi
 
 void launch_lcss_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, float* h_results,
     int num_t, int n, float epsilon, float& gpu_time) {
+
     cudaEvent_t start_all, stop_all;
     float time_all = 0.0f;
     CHECK(cudaEventCreate(&start_all));
     CHECK(cudaEventCreate(&stop_all));
     CHECK(cudaEventRecord(start_all));
 
-    size_t shared_mem_bytes = (2 * n * sizeof(Point)) + (3 * n * sizeof(int));
-
-    if (shared_mem_bytes > 49152) {
-        printf("Error: n is too large (%d). Shared memory exceeded 48KB limit!\n", n);
-        return;
-    }
 
     size_t pts_size = (size_t)num_t * n * sizeof(Point);
+    size_t diag_size = (size_t)num_t * 3 * n * sizeof(int); 
+
     Point* d_t1_raw, * d_t2_raw;
     float* d_results;
+    int* d_diagonals_flat; 
 
     CHECK(cudaMalloc(&d_t1_raw, pts_size));
     CHECK(cudaMalloc(&d_t2_raw, pts_size));
     CHECK(cudaMalloc(&d_results, num_t * sizeof(float)));
+    CHECK(cudaMalloc(&d_diagonals_flat, diag_size));
+
+    CHECK(cudaMemset(d_diagonals_flat, 0, diag_size));
 
     CHECK(cudaMemcpy(d_t1_raw, h_t1, pts_size, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(d_t2_raw, h_t2, pts_size, cudaMemcpyHostToDevice));
@@ -107,8 +98,8 @@ void launch_lcss_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, float
 
     int threadsPerBlock = 256;
 
-    lcss_wavefront_kernel << <num_t, threadsPerBlock, shared_mem_bytes >> > (
-        d_t1_raw, d_t2_raw, d_results, num_t, n, epsilon
+    lcss_wavefront_kernel << <num_t, threadsPerBlock >> > (
+        d_t1_raw, d_t2_raw, d_results, d_diagonals_flat, num_t, n, epsilon
         );
 
     cudaEventRecord(stop);
@@ -120,6 +111,8 @@ void launch_lcss_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, float
     cudaFree(d_t1_raw);
     cudaFree(d_t2_raw);
     cudaFree(d_results);
+    cudaFree(d_diagonals_flat);
+
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 
@@ -128,8 +121,7 @@ void launch_lcss_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, float
     CHECK(cudaEventElapsedTime(&time_all, start_all, stop_all));
     cudaEventDestroy(start_all);
     cudaEventDestroy(stop_all);
-    std::cout << "\n计算时间占比" << gpu_time / time_all;
-    gpu_time = time_all; 
 
+    std::cout << "\n计算时间占比: " << gpu_time / time_all << std::endl;
+    gpu_time = time_all;
 }
-
