@@ -7,16 +7,16 @@
 #include <iostream>
 
 __device__ float compute_directed_hausdorff(const float2* A, const float2* B, int n) {
-    __shared__ float2 s_B[256];
-    __shared__ float s_global_max; 
-    __shared__ float s_warp_max[8]; 
+	__shared__ float2 s_B[256];//点集B的共享内存
+    __shared__ float s_global_max; //全局最大最短距离
+	__shared__ float s_warp_max[8]; //每个warp的最大最短距离
 
-    if (threadIdx.x == 0) s_global_max = 0.0f;
-    __syncthreads();
+	if (threadIdx.x == 0) s_global_max = 0.0f;//0号线程初始化最大距离
+	__syncthreads();//同步，防止其他线程访问未初始化的s_global_max
 
-    for (int tA = 0; tA < n; tA += blockDim.x) {
-        int a_idx = tA + threadIdx.x;
-        float2 a;
+	for (int tA = 0; tA < n; tA += blockDim.x) {//遍历点集A，分块加载，每次处理256个点
+		int a_idx = tA + threadIdx.x;//偏移量+线程id=当前线程处理的点索引
+		float2 a;//当前线程处理的点
         bool valid_a = (a_idx < n);
         if (valid_a) {
             a = A[a_idx];
@@ -26,17 +26,16 @@ __device__ float compute_directed_hausdorff(const float2* A, const float2* B, in
         bool active = valid_a; 
 
         for (int tB = 0; tB < n; tB += blockDim.x) {
-            int b_idx = tB + threadIdx.x;
+			int b_idx = tB + threadIdx.x;//与a_idx类似，计算当前线程处理的点索引
             if (b_idx < n) {
-                s_B[threadIdx.x] = B[b_idx];
+				s_B[threadIdx.x] = B[b_idx];//将点集B的当前块加载到共享内存
             }
-            __syncthreads();
+			__syncthreads();//每次加载共享数据后都要同步
 
-            int valid_j = (tB + blockDim.x < n) ? blockDim.x : (n - tB);
+			int valid_j = (tB + blockDim.x < n) ? blockDim.x : (n - tB);//共享内存中有效点的数量，最后一个块可能不足256个点
 
             if (active) {
-#pragma unroll 4
-                for (int j = 0; j < valid_j; j++) {
+				for (int j = 0; j < valid_j; j++) {//计算当前点a与共享内存中每个点的距离，更新最短距离
                     float dx = a.x - s_B[j].x;
                     float dy = a.y - s_B[j].y;
                     float d2 = dx * dx + dy * dy;
@@ -55,23 +54,23 @@ __device__ float compute_directed_hausdorff(const float2* A, const float2* B, in
         float my_val = active ? local_min_d2 : 0.0f;
         unsigned int mask = 0xffffffff;
 
-        for (int offset = 16; offset > 0; offset /= 2) {
+		for (int offset = 16; offset > 0; offset /= 2) {//warp内归约，计算每个warp内线程的最大最短距离
             my_val = fmaxf(my_val, __shfl_down_sync(mask, my_val, offset));
         }
 
-        int lane = threadIdx.x % 32;
-        int wid = threadIdx.x / 32;
-        if (lane == 0) {
+        int lane = threadIdx.x % 32;//当前线程在warp中的id
+        int wid = threadIdx.x / 32;//当前线程所在warp的id
+		if (lane == 0) {//每个warp的第一个线程将该warp的最大最短距离写入共享内存
             s_warp_max[wid] = my_val;
         }
         __syncthreads();
 
-        if (threadIdx.x < 32) {
-            float final_val = (threadIdx.x < 8) ? s_warp_max[threadIdx.x] : 0.0f;
-            for (int offset = 16; offset > 0; offset /= 2) {
+		if (threadIdx.x < 32) {//前32个线程负责归约所有warp的结果，计算全局最大最短距离
+			float final_val = (threadIdx.x < 8) ? s_warp_max[threadIdx.x] : 0.0f;//256个线程有8个warp，前8个线程分别处理一个warp的结果
+			for (int offset = 16; offset > 0; offset /= 2) {//归约所有warp的结果，计算全局最大最短距离
                 final_val = fmaxf(final_val, __shfl_down_sync(mask, final_val, offset));
             }
-            if (threadIdx.x == 0) {
+			if (threadIdx.x == 0) {//0号线程更新全局最大最短距离
                 s_global_max = fmaxf(s_global_max, final_val);
             }
         }
