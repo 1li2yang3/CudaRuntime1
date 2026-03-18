@@ -8,54 +8,54 @@
 #include <cuda_awbarrier.h>
 #include <iostream>
 
-__global__ void dtw_kernel_global(const Point* t1_raw, const Point* t2_raw, float* results, float* global_dp, int num_t, int n) {
+__global__ void dtw_kernel(const Point* t1_raw, const Point* t2_raw, float* results, float* global_dp, int num_t, int n) {
     int bid = blockIdx.x;
     if (bid >= num_t) return;
-    size_t block_offset = (size_t)bid * 3 * (n + 1);
-    float* d0 = global_dp + block_offset;
-    float* d1 = global_dp + block_offset + (n + 1);
-    float* d2 = global_dp + block_offset + 2 * (n + 1);
+    size_t block_offset = (size_t)bid * 3 * (n + 1);//全局DP偏移量
+	float* d0 = global_dp + block_offset;//上两行 k-2
+	float* d1 = global_dp + block_offset + (n + 1);//上一行 k-1
+	float* d2 = global_dp + block_offset + 2 * (n + 1);//当前行 k
 
     int tid = threadIdx.x;
 
-    for (int i = tid; i <= n; i += blockDim.x) {
+	for (int i = tid; i <= n; i += blockDim.x) {//初始化DP表,无穷大表示不可达
         d0[i] = 1e20f;
         d1[i] = 1e20f;
         d2[i] = 1e20f;
     }
     __syncthreads(); 
 
-    if (tid == 0) {
+	if (tid == 0) {//0号线程初始化虚空点dp[0][0]=0
         d0[0] = 0.0f;
     }
     __syncthreads();
 
-    for (int k = 2; k <= 2 * n; k++) {
-        int i_start = max(1, k - n);
+	for (int k = 2; k <= 2 * n; k++) {//定义k=i+j，沿反对角线计算DP，每条反对角线上的元素可以并行计算
+		int i_start = max(1, k - n);//j=k-i且1<=j<=n推导出i的范围，即1<=i<=n且1<=k-i<=n
         int i_end = min(n, k - 1);
 
-        for (int i = i_start + tid; i <= i_end; i += blockDim.x) {
+		for (int i = i_start + tid; i <= i_end; i += blockDim.x) {//每个线程计算反对角线上的一个元素
             int j = k - i;
 
-            Point p1 = t1_raw[bid * n + (i - 1)];
-            Point p2 = t2_raw[bid * n + (j - 1)];
+			Point p1 = t1_raw[bid * n + (i - 1)];//索引偏移，j-1是因为DP表多了一行和一列
+			Point p2 = t2_raw[bid * n + (j - 1)];//k=2时i=1,j=1，访问t1[0]和t2[0]
 
             float dx = p1.x - p2.x;
             float dy = p1.y - p2.y;
             float cost = sqrtf(dx * dx + dy * dy);
+            // 正常状态转移方程为dp[i][j] = cost + std::min({ dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1] });
+			float diag = d0[i - 1];//k-2行的i-1位置，即dp[i-1][j-1]
+			float up = d1[i - 1];//k-1行的i-1位置，即dp[i-1][j]
+			float left = d1[i];//k-1行的i位置，即dp[i][j-1]
 
-            float diag = d0[i - 1];
-            float up = d1[i - 1];
-            float left = d1[i];
-
-            d2[i] = cost + fminf(diag, fminf(up, left));
+			d2[i] = cost + fminf(diag, fminf(up, left));//计算当前元素dp[i][j]
         }
 
         __syncthreads();
 
-        if (k == 2 && tid == 0) d0[0] = 1e20f;
+		if (k == 2 && tid == 0) d0[0] = 1e20f;//计算完第一条反对角线后，虚空点dp[0][0]不再可达，重置为无穷大
 
-        float* temp = d0;
+		float* temp = d0;//循环利用全局DP表的三行，更新行指针
         d0 = d1;
         d1 = d2;
         d2 = temp;
@@ -66,7 +66,7 @@ __global__ void dtw_kernel_global(const Point* t1_raw, const Point* t2_raw, floa
         __syncthreads();
     }
 
-    if (tid == 0) {
+	if (tid == 0) {//0号线程将结果写回全局内存
         results[bid] = d1[n];
     }
 }
@@ -80,7 +80,7 @@ void launch_dtw_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_results
     CHECK(cudaEventRecord(start_all));
 
     size_t traj_size = (size_t)num_t * n * sizeof(Point);
-    size_t global_dp_size = (size_t)num_t * 3 * (n + 1) * sizeof(float);
+	size_t global_dp_size = (size_t)num_t * 3 * (n + 1) * sizeof(float);//每个线程块需要3行(n+1)的DP表
     Point* d_t1, * d_t2;
     float* d_results;
     float* d_global_dp; 
@@ -100,7 +100,7 @@ void launch_dtw_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_results
     int threadsPerBlock = (n < 256) ? ((n / 32 + 1) * 32) : 256;
     int blocksPerGrid = num_t;
 
-    dtw_kernel_global << <blocksPerGrid, threadsPerBlock >> > (d_t1, d_t2, d_results, d_global_dp, num_t, n);
+    dtw_kernel << <blocksPerGrid, threadsPerBlock >> > (d_t1, d_t2, d_results, d_global_dp, num_t, n);
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
