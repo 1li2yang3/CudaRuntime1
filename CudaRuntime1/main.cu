@@ -48,7 +48,7 @@ void test_euclidean() {
 }
 
 void test_hausdorff() {
-    const int num_t = 2000;  
+    const int num_t = 1000;  
     const int n = 2000;      
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
@@ -179,10 +179,10 @@ int main() {
     srand(time(NULL));
 
     //test_euclidean();
-    //test_hausdorff();
+    test_hausdorff();
     //test_dtw();
     //test_lcss();
-    test_frechet();
+    //test_frechet();
     
     ;
 

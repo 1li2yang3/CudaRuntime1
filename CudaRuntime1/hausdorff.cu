@@ -106,7 +106,6 @@ void launch_hausdorff_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_r
     Point* d_t1 = nullptr;
     Point* d_t2 = nullptr;
     float* d_results = nullptr;
-
     size_t total_points = (size_t)num_t * n;
 
     CHECK(cudaMalloc(&d_t1, total_points * sizeof(Point)));
@@ -133,14 +132,16 @@ void launch_hausdorff_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_r
     cudaFree(d_t1);
     cudaFree(d_t2);
     cudaFree(d_results);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
     CHECK(cudaEventRecord(stop_all));
     CHECK(cudaEventSynchronize(stop_all));
     CHECK(cudaEventElapsedTime(&time_all, start_all, stop_all));
     cudaEventDestroy(start_all);
     cudaEventDestroy(stop_all);
+
     std::cout << "\n计算时间占比: " << gpu_time / time_all;
     gpu_time = time_all; 
-
 
 }
