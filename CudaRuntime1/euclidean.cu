@@ -6,7 +6,7 @@
 #include <iostream>
 
 __inline__ __device__ float warpReduceSum(float val) {
-    for (int offset = warpSize / 2; offset > 0; offset /= 2) {
+    for (int offset = warpSize / 2; offset > 0; offset /= 2) {//当前线程向自己线程号加上偏移量的线程获取数据
         val += __shfl_down_sync(0xffffffff, val, offset);
     }
     return val;
@@ -21,7 +21,7 @@ __global__ void euclidean_kernel(const float2* t1_batch, const float2* t2_batch,
     float local_sum = 0.0f;
     int offset = bid * n;
 
-    for (int i = tid; i < n; i += blockDim.x) {
+    for (int i = tid; i < n; i += blockDim.x) {//每次256个线程同时计算
         float2 p1 = t1_batch[offset + i];
         float2 p2 = t2_batch[offset + i];
 
@@ -32,21 +32,21 @@ __global__ void euclidean_kernel(const float2* t1_batch, const float2* t2_batch,
 
     float warp_sum = warpReduceSum(local_sum);
 
-    static __shared__ float shared_warp_sums[32];
-    int warp_id = tid / warpSize;
-    int lane_id = tid % warpSize;
+    static __shared__ float shared_warp_sums[32];//共享内存
+	int warp_id = tid / warpSize;//当前线程所在warp的id
+	int lane_id = tid % warpSize;//当前线程在warp中的id，warpReduceSum后0号线程保存了warp的和
 
     if (lane_id == 0) {
         shared_warp_sums[warp_id] = warp_sum;
     }
-    __syncthreads();
+	__syncthreads();//同步所有线程
 
-    int num_warps = (blockDim.x + warpSize - 1) / warpSize;
-    if (warp_id == 0) {
-        float final_sum = (lane_id < num_warps) ? shared_warp_sums[lane_id] : 0.0f;
+	int num_warps = (blockDim.x + warpSize - 1) / warpSize;//当前block中warp数
+	if (warp_id == 0) {//0号warp负责将所有warp的和加起来
+		float final_sum = (lane_id < num_warps) ? shared_warp_sums[lane_id] : 0.0f;//每个线程取一个warp的和，之后的线程取0
         final_sum = warpReduceSum(final_sum);
 
-        if (tid == 0) {
+		if (tid == 0) {//0号线程存结果
             results[bid] = sqrtf(final_sum);
         }
     }
@@ -85,17 +85,17 @@ void launch_euclidean_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_r
 
     CHECK(cudaMemcpy(h_results, d_results, num_t * sizeof(float), cudaMemcpyDeviceToHost));
 
-    CHECK(cudaEventRecord(stop_all));
-    CHECK(cudaEventSynchronize(stop_all));
-    CHECK(cudaEventElapsedTime(&time_all, start_all, stop_all));
-
     cudaFree(d_t1_f32);
     cudaFree(d_t2_f32);
     cudaFree(d_results);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 
+    CHECK(cudaEventRecord(stop_all));
+    CHECK(cudaEventSynchronize(stop_all));
+    CHECK(cudaEventElapsedTime(&time_all, start_all, stop_all));
+    cudaEventDestroy(start_all);
+    cudaEventDestroy(stop_all);
     std::cout << "计算时间占比: " << gpu_time / time_all;
-
     gpu_time = time_all;
 }

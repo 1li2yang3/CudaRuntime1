@@ -126,6 +126,8 @@ void launch_lcss_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, float
     CHECK(cudaEventRecord(stop_all));
     CHECK(cudaEventSynchronize(stop_all));
     CHECK(cudaEventElapsedTime(&time_all, start_all, stop_all));
+    cudaEventDestroy(start_all);
+    cudaEventDestroy(stop_all);
     std::cout << "\n计算时间占比" << gpu_time / time_all;
     gpu_time = time_all; 
 

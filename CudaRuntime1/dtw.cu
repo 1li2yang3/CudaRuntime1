@@ -123,13 +123,17 @@ void launch_dtw_batch_gpu(const Point* h_t1, const Point* h_t2, float* h_results
 
     CHECK(cudaMemcpy(h_results, d_results, num_t * sizeof(float), cudaMemcpyDeviceToHost));
 
+    cudaFree(d_t1_raw);
+    cudaFree(d_t2_raw);
+    cudaFree(d_results);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
     CHECK(cudaEventRecord(stop_all));
     CHECK(cudaEventSynchronize(stop_all));
     CHECK(cudaEventElapsedTime(&time_all, start_all, stop_all));
-
-    cudaFree(d_t1_raw); cudaFree(d_t2_raw); cudaFree(d_results);
-    cudaEventDestroy(start); cudaEventDestroy(stop);
-
+    cudaEventDestroy(start_all);
+    cudaEventDestroy(stop_all);
     std::cout << "\n计算时间占比: " << gpu_time / time_all;
     gpu_time = time_all;
 
