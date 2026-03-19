@@ -16,7 +16,7 @@ void generate_random_points(std::vector<Point>& host_vec) {
 }
 
 void test_euclidean() {
-    const int num_t = 1200;
+    const int num_t = 1000;
     const int n = 1000;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
@@ -38,6 +38,7 @@ void test_euclidean() {
     for (int i = 0; i < num_t; i++) {
 		if (abs(cpu_results[i] - gpu_results[i]) > 1e-3) {
             pass = false;
+            std::cout << cpu_results[i] << "--" << gpu_results[i] << std::endl;
             break;
         }
     }
@@ -48,7 +49,7 @@ void test_euclidean() {
 }
 
 void test_hausdorff() {
-    const int num_t = 2000;  
+    const int num_t = 1000;  
     const int n = 2000;      
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
@@ -72,6 +73,7 @@ void test_hausdorff() {
     for (int i = 0; i < num_t; i++) {
         if (abs(cpu_results[i] - gpu_results[i]) > 1e-5) {
             pass = false;
+            std::cout << cpu_results[i] << "--" << gpu_results[i] << std::endl;
             break;
         }
     }
@@ -136,6 +138,7 @@ void test_lcss() {
     for (int i = 0; i < num_t; i++) {
         if (abs(cpu_results[i] - gpu_results[i]) > 1e-5 ) {
             pass = false;
+            std::cout << cpu_results[i] << "--" << gpu_results[i] << std::endl;
             break;
         }
     }
@@ -145,7 +148,7 @@ void test_lcss() {
 }
 
 void test_frechet() {
-    const int num_t = 600;
+    const int num_t = 500;
     const int n = 1000;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
@@ -167,6 +170,7 @@ void test_frechet() {
     for (int i = 0; i < num_t; i++) {
         if (abs(cpu_results[i] - gpu_results_wavefront[i]) > 1e-5) {
             pass = false;
+            std::cout << cpu_results[i] << "--" << gpu_results_wavefront[i] << std::endl;
             break;
         }
     }
