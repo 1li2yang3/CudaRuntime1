@@ -178,11 +178,11 @@ void test_frechet() {
 int main() {
     srand(time(NULL));
 
-    test_euclidean();
+    //test_euclidean();
     //test_hausdorff();
     //test_dtw();
     //test_lcss();
-    //test_frechet();
+    test_frechet();
     
 
     return 0;
