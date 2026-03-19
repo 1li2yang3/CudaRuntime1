@@ -3,24 +3,23 @@
 #include <algorithm>
 #include <iostream>
 
-__global__ void frechet_kernel_wavefront(
-    const Point* t1, const Point* t2, float* results, int n,
-    float* g_dp_prev2, float* g_dp_prev1, float* g_dp_curr)
+__global__ void frechet_kernel_wavefront(const Point* t1, const Point* t2, float* results, int n,
+    float* g_dp_prev2, float* g_dp_prev1, float* g_dp_curr)  
 {
-    int bx = blockIdx.x;
-    int tx = threadIdx.x;
+    int bid = blockIdx.x;
+    int tid = threadIdx.x;
 
-    int offset = bx * n;
+    int offset = bid * n;
 
     float* dp_prev2 = g_dp_prev2 + offset;
     float* dp_prev1 = g_dp_prev1 + offset;
     float* dp_curr = g_dp_curr + offset;
 
-    for (int k = 0; k < 2 * n - 1; k++) {
-        int start_i = max(0, k - n + 1);
-        int len = min(k, n - 1) - start_i + 1;
+	for (int k = 0; k < 2 * n - 1; k++) {//这里没有虚拟边界，所以k从0到2n-1
+		int start_i = max(0, k - n + 1);//i+j=k,0<=i<=n-1,0<=j<=n-1,所以i的范围是max(0,k-n+1)到min(k,n-1)
+		int len = min(k, n - 1) - start_i + 1;//该条对角线上的元素个数
 
-        for (int step = tx; step < len; step += blockDim.x) {
+		for (int step = tid; step < len; step += blockDim.x) {//多个线程并行处理一条对角线上的元素
             int i = start_i + step;
             int j = k - i;
 
@@ -29,35 +28,35 @@ __global__ void frechet_kernel_wavefront(
             float dist = sqrtf(dx * dx + dy * dy);
 
             float val = dist;
-            if (k > 0) {
+			if (k > 0) {//dp[0][0] = dist,所以k=0时不需要考虑前驱状态
                 float prev_min;
-                if (i == 0) {
+				if (i == 0) {//第一行只能从左边来 对应dp[i][j-1],此时i=0
                     prev_min = dp_prev1[0];
                 }
-                else if (j == 0) {
+				else if (j == 0) {//第一列只能从上边来 对应dp[i-1][j],此时j=0
                     prev_min = dp_prev1[i - 1];
                 }
                 else {
-                    float left = dp_prev1[i];
-                    float up = dp_prev1[i - 1];
-                    float diag = dp_prev2[i - 1];
+					float left = dp_prev1[i];//对应dp[i][j-1]
+					float up = dp_prev1[i - 1];//对应dp[i-1][j]
+					float diag = dp_prev2[i - 1];//对应dp[i-1][j-1]
                     prev_min = fminf(fminf(left, up), diag);
                 }
-                val = fmaxf(dist, prev_min);
+				val = fmaxf(dist, prev_min);//Frechet距离的递推关系是当前距离和前驱状态的最大值
             }
             dp_curr[i] = val;
         }
 
         __syncthreads();
 
-        float* temp = dp_prev2;
+		float* temp = dp_prev2;//滚动数组更新指针
         dp_prev2 = dp_prev1;
         dp_prev1 = dp_curr;
         dp_curr = temp;
     }
 
-    if (tx == 0) {
-        results[bx] = dp_prev1[n - 1];
+	if (tid == 0) {//0号线程写回结果
+        results[bid] = dp_prev1[n - 1];
     }
 }
 

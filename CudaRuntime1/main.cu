@@ -16,7 +16,7 @@ void generate_random_points(std::vector<Point>& host_vec) {
 }
 
 void test_euclidean() {
-    const int num_t = 1000;
+    const int num_t = 1200;
     const int n = 1000;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
@@ -145,8 +145,8 @@ void test_lcss() {
 }
 
 void test_frechet() {
-    const int num_t = 700;
-    const int n = 1100;
+    const int num_t = 600;
+    const int n = 1000;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results_wavefront(num_t);
@@ -178,13 +178,19 @@ void test_frechet() {
 int main() {
     srand(time(NULL));
 
-    //test_euclidean();
+    test_euclidean();
     //test_hausdorff();
     //test_dtw();
     //test_lcss();
-    test_frechet();
+    //test_frechet();
     
-    ;
 
     return 0;
 }
+//反对角线的矩阵是如下格式：从左上到右下
+//  j
+//i 1 1 1 1 1
+//  1 1 1 1 1
+//  1 1 1 1 1
+//  1 1 1 1 1
+//  1 1 1 1 1
