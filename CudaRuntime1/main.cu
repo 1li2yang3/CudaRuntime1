@@ -184,9 +184,9 @@ int main() {
 
     //test_euclidean();
     //test_hausdorff();
-    //test_dtw();
+    test_dtw();
     //test_lcss();
-    test_frechet();
+    //test_frechet();
     
 
     return 0;
