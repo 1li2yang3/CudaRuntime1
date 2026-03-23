@@ -7,7 +7,7 @@
 #include <iostream>
 
 __device__ float compute_directed_hausdorff(const float2* A, const float2* B, int n) {
-	__shared__ float2 s_B[256];//点集B的共享内存
+	__shared__ float2 s_B[256];//点集B的共享内存，分块加载，每次处理256个点
     __shared__ float s_global_max; //全局最大最短距离
 	__shared__ float s_warp_max[8]; //每个warp的最大最短距离
 

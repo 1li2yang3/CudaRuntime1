@@ -183,8 +183,8 @@ int main() {
     srand(time(NULL));
 
     //test_euclidean();
-    //test_hausdorff();
-    test_dtw();
+    test_hausdorff();
+    //test_dtw();
     //test_lcss();
     //test_frechet();
     
