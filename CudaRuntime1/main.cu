@@ -50,18 +50,19 @@ void test_euclidean() {
 
 void test_hausdorff() {
     const int num_t = 1000;  
-    const int n = 2000;      
+    const int n = 1800;     
+    const int m = 2000;
     std::vector<Point> h_t1(num_t * n);
-    std::vector<Point> h_t2(num_t * (n+200));
+    std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
     
     generate_random_points(h_t1);
     generate_random_points(h_t2);
     
-    float cpu_time_ms_grid = launch_hausdorff_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n);
+    float cpu_time_ms_grid = launch_hausdorff_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n, m);
     float gpu_time_ms = 0;
-    launch_hausdorff_batch_gpu(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, gpu_time_ms);
+    launch_hausdorff_batch_gpu(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, m, gpu_time_ms);
     
     std::cout << "\n[ Hausdorff Distance Experiment ]" << std::endl;
     std::cout << std::fixed << std::setprecision(4);
@@ -82,18 +83,19 @@ void test_hausdorff() {
 }
 
 void test_dtw() {
-    const int num_t = 500; 
-    const int n = 1000;    
+    const int num_t = 400; 
+    const int n = 800;    
+    const int m = 1000;
     std::vector<Point> h_t1(num_t * n);
-    std::vector<Point> h_t2(num_t * (n+200));
+    std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
     generate_random_points(h_t1);
     generate_random_points(h_t2);
 
-    float cpu_time = launch_dtw_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n);
+    float cpu_time = launch_dtw_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n, m);
     float gpu_time = 0;
-    launch_dtw_batch_gpu(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, gpu_time);
+    launch_dtw_batch_gpu(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, m, gpu_time);
     
     std::cout << "\n[ DTW Distance Experiment ]" << std::endl;
     std::cout << "CPU Time: " << cpu_time << " ms" << std::endl;;
@@ -117,17 +119,18 @@ void test_dtw() {
 void test_lcss() {
     const int num_t = 1000; 
     const int n = 1000;       
+    const int m = 1200;
     const float epsilon = 0.5f; 
     std::vector<Point> h_t1(num_t * n);
-    std::vector<Point> h_t2(num_t * (n+200));
+    std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
     generate_random_points(h_t1);
     generate_random_points(h_t2);
 
-    float cpu_time = launch_lcss_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n, epsilon);
+    float cpu_time = launch_lcss_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n,m, epsilon);
     float gpu_time = 0;
-    launch_lcss_batch_gpu_wavefront(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, epsilon, gpu_time);
+    launch_lcss_batch_gpu_wavefront(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, m, epsilon, gpu_time);
 
     std::cout << "\n[ LCSS Similarity Experiment ]" << std::endl;
     std::cout << "CPU Time: " << cpu_time << " ms" << std::endl;
@@ -148,18 +151,19 @@ void test_lcss() {
 }
 
 void test_frechet() {
-    const int num_t = 500;
-    const int n = 1000;
+    const int num_t = 400;
+    const int n = 900;
+    const int m = 1100;
     std::vector<Point> h_t1(num_t * n);
-    std::vector<Point> h_t2(num_t * (n+200));
+    std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results_wavefront(num_t);
     std::vector<float> cpu_results(num_t);
     generate_random_points(h_t1);
     generate_random_points(h_t2);
-
-    float cpu_time = launch_frechet_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n);
+    //传入参数前对轨迹长度进行判断，h1是较短的一条，n<=m
+    float cpu_time = launch_frechet_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n , m);
     float gpu_time_wavefront = 0;
-    launch_frechet_batch_gpu_wavefront(h_t1.data(), h_t2.data(), gpu_results_wavefront.data(), num_t, n, gpu_time_wavefront);
+    launch_frechet_batch_gpu_wavefront(h_t1.data(), h_t2.data(), gpu_results_wavefront.data(), num_t, n , m , gpu_time_wavefront);
     
     std::cout << "\n[ Fréchet Distance Experiment ]" << std::endl;
     std::cout << "CPU Time: " << cpu_time << " ms" << std::endl;

@@ -36,7 +36,7 @@ __global__ void euclidean_kernel(const float2* t1_batch, const float2* t2_batch,
 	int warp_id = tid / warpSize;//当前线程所在warp的id
 	int lane_id = tid % warpSize;//当前线程在warp中的id，warpReduceSum后0号线程保存了warp的和
 
-    if (lane_id == 0) {
+	if (lane_id == 0) {//每个warp的0号线程将warp的和保存到共享内存中
         shared_warp_sums[warp_id] = warp_sum;
     }
 	__syncthreads();//同步所有线程
