@@ -52,7 +52,7 @@ void test_hausdorff() {
     const int num_t = 1000;  
     const int n = 2000;      
     std::vector<Point> h_t1(num_t * n);
-    std::vector<Point> h_t2(num_t * n);
+    std::vector<Point> h_t2(num_t * (n+200));
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
     
@@ -85,7 +85,7 @@ void test_dtw() {
     const int num_t = 500; 
     const int n = 1000;    
     std::vector<Point> h_t1(num_t * n);
-    std::vector<Point> h_t2(num_t * n);
+    std::vector<Point> h_t2(num_t * (n+200));
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
     generate_random_points(h_t1);
@@ -119,7 +119,7 @@ void test_lcss() {
     const int n = 1000;       
     const float epsilon = 0.5f; 
     std::vector<Point> h_t1(num_t * n);
-    std::vector<Point> h_t2(num_t * n);
+    std::vector<Point> h_t2(num_t * (n+200));
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
     generate_random_points(h_t1);
@@ -151,7 +151,7 @@ void test_frechet() {
     const int num_t = 500;
     const int n = 1000;
     std::vector<Point> h_t1(num_t * n);
-    std::vector<Point> h_t2(num_t * n);
+    std::vector<Point> h_t2(num_t * (n+200));
     std::vector<float> gpu_results_wavefront(num_t);
     std::vector<float> cpu_results(num_t);
     generate_random_points(h_t1);
@@ -183,10 +183,10 @@ int main() {
     srand(time(NULL));
 
     //test_euclidean();
-    test_hausdorff();
+    //test_hausdorff();
     //test_dtw();
     //test_lcss();
-    //test_frechet();
+    test_frechet();
     
 
     return 0;
