@@ -16,8 +16,8 @@ void generate_random_points(std::vector<Point>& host_vec) {
 }
 
 void test_euclidean() {
-    const int num_t = 1000;
-    const int n = 1000;
+    const int num_t = 10000;
+    const int n = 10000;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results(num_t);
@@ -186,11 +186,11 @@ void test_frechet() {
 int main() {
     srand(time(NULL));
 
-    //test_euclidean();
+    test_euclidean();
     //test_hausdorff();
     //test_dtw();
     //test_lcss();
-    test_frechet();
+    //test_frechet();
     
 
     return 0;
