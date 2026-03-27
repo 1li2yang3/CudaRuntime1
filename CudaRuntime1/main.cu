@@ -50,7 +50,7 @@ void test_euclidean() {
 
 void test_hausdorff() {
     const int num_t = 1000;  
-    const int n = 1800;     
+    const int n = 1900;     
     const int m = 2000;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
