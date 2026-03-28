@@ -6,6 +6,7 @@
 #include "dtw.cuh"
 #include "lcss.cuh"
 #include "frechet.cuh"
+#include <thread>
 
 //void generate_random_points(std::vector<Point>& host_vec) {
 //
@@ -311,12 +312,16 @@ void test_frechet() {
 int main() {
     srand(time(NULL));
 
-    test_euclidean();
+    /*test_euclidean();
     test_euclidean_2();
-    //test_hausdorff();
-    //test_dtw();
-    //test_lcss();
-    //test_frechet();
+    test_hausdorff();*/
+    test_dtw();
+    cudaDeviceSynchronize();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    test_lcss();
+    cudaDeviceSynchronize();
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    test_frechet();
     
 
     return 0;
