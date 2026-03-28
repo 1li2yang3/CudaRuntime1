@@ -43,7 +43,37 @@ void test_euclidean() {
         }
     }
     std::cout << "Integrity Check: " << (pass ? "PASS " : "FAIL ") << std::endl;
+    std::cout << cpu_results[10] << "--" << gpu_results[10] << std::endl;
+}
 
+void test_euclidean_2() {
+    const int num_t = 100;
+    const int n = 1000;
+    std::vector<Point> h_t1(num_t * n);
+    std::vector<Point> h_t2(num_t * n);
+    std::vector<float> gpu_results(num_t);
+    std::vector<float> cpu_results(num_t);
+    generate_random_points(h_t1);
+    generate_random_points(h_t2);
+
+    float cpu_time_ms = launch_euclidean_batch_cpu_2(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n);
+    float gpu_time_ms = 0;
+    launch_euclidean_batch_gpu_2(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, gpu_time_ms);
+
+    std::cout << "\n[ Euclidean Distance Experiment ]" << std::endl;
+    std::cout << std::fixed << std::setprecision(4);
+    std::cout << "CPU Execution Time : " << cpu_time_ms << " ms" << std::endl;
+    std::cout << "GPU Execution Time : " << gpu_time_ms << " ms" << std::endl;
+    std::cout << "SPEEDUP: " << cpu_time_ms / gpu_time_ms << "x" << std::endl;
+    bool pass = true;
+    for (int i = 0; i < num_t; i++) {
+        if (abs(cpu_results[i] - gpu_results[i]) > 1e-3) {
+            pass = false;
+            std::cout << cpu_results[i] << "--" << gpu_results[i] << std::endl;
+            break;
+        }
+    }
+    std::cout << "Integrity Check: " << (pass ? "PASS " : "FAIL ") << std::endl;
     std::cout << cpu_results[10] << "--" << gpu_results[10] << std::endl;
 
 }
@@ -187,7 +217,8 @@ int main() {
     srand(time(NULL));
 
     test_euclidean();
-    //test_hausdorff();
+    test_euclidean_2();
+    test_hausdorff();
     //test_dtw();
     //test_lcss();
     //test_frechet();
