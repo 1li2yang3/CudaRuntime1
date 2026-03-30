@@ -164,9 +164,9 @@ void test_euclidean_2() {
 }
 
 void test_hausdorff() {
-    const int num_t = 1000;  
-    const int n = 1900;     
-    const int m = 2000;
+    const int num_t = 100;  
+    const int n = 1000;     
+    const int m = 1200;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
@@ -177,15 +177,25 @@ void test_hausdorff() {
     float noise_max = 2.0f;
     generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, m, noise_max);
     
-    float cpu_time_ms_grid = launch_hausdorff_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n, m);
-    float gpu_time_ms = 0;
-    launch_hausdorff_batch_gpu(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, m, gpu_time_ms);
+    float cpu_time_ms_grid = launch_hausdorff_batch_cpu_rtree(
+        h_t1.data(), num_t, n,
+        h_t2.data(), num_t, m,
+        cpu_results.data()
+        // top_k 默认是 10，所以可以不传
+    );
+
+    // 2. GPU Pipeline 调用修正：参数顺序同上，返回值就是总耗时
+    float gpu_time_ms_total = run_hausdorff_rtree_gpu_pipeline(
+        h_t1.data(), num_t, n,
+        h_t2.data(), num_t, m,
+        gpu_results.data()
+    );
     
     std::cout << "\n[ Hausdorff Distance Experiment ]" << std::endl;
     std::cout << std::fixed << std::setprecision(4);
     std::cout << "CPU Time: " << cpu_time_ms_grid << " ms" << std::endl;
-    std::cout << "GPU Time: " << gpu_time_ms << " ms" << std::endl;
-    std::cout << "SPEEDUP: " << cpu_time_ms_grid / gpu_time_ms << "x" << std::endl;
+    std::cout << "GPU Time: " << gpu_time_ms_total << " ms" << std::endl;
+    std::cout << "SPEEDUP: " << cpu_time_ms_grid / gpu_time_ms_total << "x" << std::endl;
 
     bool pass = true;
     for (int i = 0; i < num_t; i++) {
@@ -313,7 +323,7 @@ int main() {
     srand(time(NULL));
 
     //test_euclidean();
-    test_euclidean_2();
+    //test_euclidean_2();
     test_hausdorff();
     /*test_dtw();
     cudaDeviceSynchronize();

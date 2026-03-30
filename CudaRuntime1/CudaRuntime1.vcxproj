@@ -108,6 +108,7 @@
     <ClCompile Include="euclidean_rtree.cpp" />
     <ClCompile Include="frechet.cpp" />
     <ClCompile Include="hausdorff.cpp" />
+    <ClCompile Include="hausdorff_rtree.cpp" />
     <ClCompile Include="lcss.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

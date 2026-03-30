@@ -4,7 +4,9 @@
 #include <algorithm>
 #include <chrono>
 #include <omp.h>  
-
+#include <iostream>
+#include <boost/geometry.hpp>
+#include <boost/geometry/index/rtree.hpp>
 
 inline float compute_directed_hausdorff(const Point* source, int len_source, const Point* target, int len_target, float current_max_min_d2) {
     float min_x = target[0].x, max_x = target[0].x;
@@ -125,6 +127,86 @@ float launch_hausdorff_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_
         float d2 = compute_directed_hausdorff(T2, m, T1, n, d1);
 
         h_results[k] = sqrtf(d2); // 最终结果开方
+    }
+
+    auto stop = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration<float, std::milli>(stop - start).count();
+}
+
+
+
+
+
+namespace bg = boost::geometry;
+namespace bgi = boost::geometry::index;
+
+// 定义 Boost 中适配 R-tree 的数据结构
+typedef bg::model::point<float, 2, bg::cs::cartesian> bg_point;
+typedef bg::model::box<bg_point> bg_box;
+// R-tree 中存储的元素对：<轨迹边界框, 轨迹在 h_t2 中的索引>
+typedef std::pair<bg_box, int> rtree_value;
+
+
+// 提取单条轨迹的边界框 (MBR)
+inline bg_box get_trajectory_mbr(const Point* traj, int len) {
+    float min_x = traj[0].x, max_x = traj[0].x;
+    float min_y = traj[0].y, max_y = traj[0].y;
+    for (int i = 1; i < len; ++i) {
+        min_x = std::min(min_x, traj[i].x);
+        max_x = std::max(max_x, traj[i].x);
+        min_y = std::min(min_y, traj[i].y);
+        max_y = std::max(max_y, traj[i].y);
+    }
+    return bg_box(bg_point(min_x, min_y), bg_point(max_x, max_y));
+}
+
+
+float launch_hausdorff_batch_cpu_rtree(const Point* h_t1, int num_t1, int n,
+    const Point* h_t2, int num_t2, int m,
+    float* h_results, int top_k ) {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // 1. 预处理：构建 h_t2 的 R-Tree
+    std::vector<rtree_value> rtree_entries;
+    rtree_entries.reserve(num_t2);
+    for (int i = 0; i < num_t2; i++) {
+        const Point* T2 = &h_t2[i * m];
+        bg_box mbr = get_trajectory_mbr(T2, m);
+        rtree_entries.push_back(std::make_pair(mbr, i));
+    }
+
+    // 使用 quadratic 算法构建 R-tree（批量插入性能更好）
+    bgi::rtree<rtree_value, bgi::quadratic<16>> rtree(rtree_entries);
+
+    // 2. 并行查询与精确计算
+#pragma omp parallel for
+    for (int i = 0; i < num_t1; i++) {
+        const Point* T1 = &h_t1[i * n];
+        bg_box mbr1 = get_trajectory_mbr(T1, n);
+
+        // 使用 R-Tree 查出距离 T1 的 MBR 最近的 top_k 个 T2 轨迹
+        std::vector<rtree_value> candidates;
+        rtree.query(bgi::nearest(mbr1, top_k), std::back_inserter(candidates));
+
+        float best_hausdorff_d2 = 1e20f; // 初始化为极大值，记录真实的最小距离平方
+
+        // 在这 10 个候选者中进行精确的 Hausdorff 计算
+        for (const auto& candidate : candidates) {
+            int target_idx = candidate.second;
+            const Point* T2_candidate = &h_t2[target_idx * m];
+
+            // 复用你原来的核心算法
+            float d1 = compute_directed_hausdorff(T1, n, T2_candidate, m, 0.0f);
+            float d2 = compute_directed_hausdorff(T2_candidate, m, T1, n, d1);
+
+            // 更新找到的最相似轨迹（距离越小越相似）
+            if (d2 < best_hausdorff_d2) {
+                best_hausdorff_d2 = d2;
+            }
+        }
+
+        // 保存最接近的一条轨迹的真实距离开方
+        h_results[i] = sqrtf(best_hausdorff_d2);
     }
 
     auto stop = std::chrono::high_resolution_clock::now();
