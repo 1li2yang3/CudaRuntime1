@@ -105,6 +105,7 @@
   <ItemGroup>
     <ClCompile Include="dtw.cpp" />
     <ClCompile Include="euclidean.cpp" />
+    <ClCompile Include="euclidean_rtree.cpp" />
     <ClCompile Include="frechet.cpp" />
     <ClCompile Include="hausdorff.cpp" />
     <ClCompile Include="lcss.cpp" />

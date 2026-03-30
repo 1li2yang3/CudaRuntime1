@@ -129,8 +129,8 @@ void test_euclidean() {
 }
 
 void test_euclidean_2() {
-    const int num_t = 100;
-    const int n = 1000;
+    const int num_t = 1200;
+    const int n = 1200;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results(num_t);
@@ -141,9 +141,9 @@ void test_euclidean_2() {
     float noise_max = 2.0f;
     generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, n, noise_max);
 
-    float cpu_time_ms = launch_euclidean_batch_cpu_2(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n);
+    float cpu_time_ms = launch_euclidean_batch_cpu_rtree(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n);
     float gpu_time_ms = 0;
-    launch_euclidean_batch_gpu_2(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, gpu_time_ms);
+    launch_euclidean_batch_gpu_rtree_exact(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, gpu_time_ms);
 
     std::cout << "\n[ Euclidean Distance Experiment ]" << std::endl;
     std::cout << std::fixed << std::setprecision(4);
@@ -312,16 +312,16 @@ void test_frechet() {
 int main() {
     srand(time(NULL));
 
-    /*test_euclidean();
+    //test_euclidean();
     test_euclidean_2();
-    test_hausdorff();*/
-    test_dtw();
+    test_hausdorff();
+    /*test_dtw();
     cudaDeviceSynchronize();
     std::this_thread::sleep_for(std::chrono::seconds(1));
     test_lcss();
     cudaDeviceSynchronize();
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    test_frechet();
+    test_frechet();*/
     
 
     return 0;
