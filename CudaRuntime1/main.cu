@@ -184,7 +184,7 @@ void test_hausdorff() {
         // top_k 默认是 10，所以可以不传
     );
 
-    // 2. GPU Pipeline 调用修正：参数顺序同上，返回值就是总耗时
+    
     float gpu_time_ms_total = run_hausdorff_rtree_gpu_pipeline(
         h_t1.data(), num_t, n,
         h_t2.data(), num_t, m,
@@ -210,7 +210,7 @@ void test_hausdorff() {
 }
 
 void test_dtw() {
-    const int num_t = 400; 
+    const int num_t = 100; 
     const int n = 800;    
     const int m = 1000;
     std::vector<Point> h_t1(num_t * n);
@@ -225,7 +225,7 @@ void test_dtw() {
 
     float cpu_time = launch_dtw_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n, m);
     float gpu_time = 0;
-    launch_dtw_batch_gpu(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, m, gpu_time);
+    launch_dtw_batch_gpu_knn(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, m, gpu_time);
     
     std::cout << "\n[ DTW Distance Experiment ]" << std::endl;
     std::cout << "CPU Time: " << cpu_time << " ms" << std::endl;;
@@ -247,7 +247,7 @@ void test_dtw() {
 
 
 void test_lcss() {
-    const int num_t = 1000; 
+    const int num_t = 100; 
     const int n = 1000;       
     const int m = 1200;
     const float epsilon = 0.5f; 
@@ -263,7 +263,7 @@ void test_lcss() {
 
     float cpu_time = launch_lcss_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n,m, epsilon);
     float gpu_time = 0;
-    launch_lcss_batch_gpu_wavefront(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, m, epsilon, gpu_time);
+    launch_lcss_batch_gpu_wavefront_knn(h_t1.data(), h_t2.data(), gpu_results.data(), num_t, n, m, epsilon, gpu_time);
 
     std::cout << "\n[ LCSS Similarity Experiment ]" << std::endl;
     std::cout << "CPU Time: " << cpu_time << " ms" << std::endl;
@@ -284,7 +284,7 @@ void test_lcss() {
 }
 
 void test_frechet() {
-    const int num_t = 400;
+    const int num_t = 100;
     const int n = 900;
     const int m = 1100;
     std::vector<Point> h_t1(num_t * n);
@@ -321,17 +321,17 @@ void test_frechet() {
 
 int main() {
     srand(time(NULL));
-
-    //test_euclidean();
+    
+    
     //test_euclidean_2();
-    test_hausdorff();
-    /*test_dtw();
-    cudaDeviceSynchronize();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    test_lcss();
-    cudaDeviceSynchronize();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    test_frechet();*/
+
+    //test_hausdorff();
+
+    //test_dtw();
+   
+    //test_lcss();
+    
+    test_frechet();
     
 
     return 0;
