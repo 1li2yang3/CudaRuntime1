@@ -109,32 +109,6 @@ inline float compute_directed_hausdorff(const Point* source, int len_source, con
     return max_min_d2;
 }
 
-float launch_hausdorff_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_results, int num_t, int n, int m) {
-    auto start = std::chrono::high_resolution_clock::now();
-
-#pragma omp parallel for
-    for (int k = 0; k < num_t; k++) {
-        // 分离偏移量
-        int offset1 = k * n;
-        int offset2 = k * m;
-
-        const Point* T1 = &h_t1[offset1];
-        const Point* T2 = &h_t2[offset2];
-
-        // T1 到 T2：源长度为 n，目标长度为 m
-        float d1 = compute_directed_hausdorff(T1, n, T2, m, 0.0f);
-        // T2 到 T1：源长度为 m，目标长度为 n (传入之前计算出的 d1 进行剪枝优化)
-        float d2 = compute_directed_hausdorff(T2, m, T1, n, d1);
-
-        h_results[k] = sqrtf(d2); // 最终结果开方
-    }
-
-    auto stop = std::chrono::high_resolution_clock::now();
-    return std::chrono::duration<float, std::milli>(stop - start).count();
-}
-
-
-
 
 
 namespace bg = boost::geometry;
