@@ -6,15 +6,16 @@
 #include <iostream>
 #include <cfloat> // 引入 FLT_MAX
 
+// Warp 级别的规约求和 (保留，这个极其高效)
 __inline__ __device__ float warpReduceSum(float val) {
-    for (int offset = warpSize / 2; offset > 0; offset /= 2) {//当前线程向自己线程号加上偏移量的线程获取数据
+    for (int offset = warpSize / 2; offset > 0; offset /= 2) {
         val += __shfl_down_sync(0xffffffff, val, offset);
     }
     return val;
 }
 
-
-__global__ void euclidean_rtree_csr_kernel_shared(const float2* t1_batch, const float2* t2_batch,
+// 【修改点 1】：重命名为 global 版本，去除动态 shared memory 依赖
+__global__ void euclidean_rtree_csr_kernel_global(const float2* t1_batch, const float2* t2_batch,
     const int* candidates, const int* offsets,
     float* results, int num_t, int n)
 {
@@ -23,17 +24,14 @@ __global__ void euclidean_rtree_csr_kernel_shared(const float2* t1_batch, const 
 
     if (bid >= num_t) return;
 
-    extern __shared__ float2 s_t1[];
+    // 【删除】：extern __shared__ float2 s_t1[]; 以及对应的预加载循环
 
     int offset1 = bid * n;
 
-    for (int i = tid; i < n; i += blockDim.x) {
-        s_t1[i] = t1_batch[offset1 + i];
-    }
-
-    __syncthreads();
-
     float min_dist_sq = FLT_MAX;
+
+    // 注意：这里依然保留了一点点 shared memory 用于 Warp 间的通信归约。
+    // 但这个大小是固定的 (32 * 4 = 128 字节)，连 1KB 都不到，绝对不可能引发超限报错。
     static __shared__ float shared_warp_sums[32];
 
     int warp_id = tid / warpSize;
@@ -43,16 +41,15 @@ __global__ void euclidean_rtree_csr_kernel_shared(const float2* t1_batch, const 
     int start_idx = offsets[bid];
     int end_idx = offsets[bid + 1];
 
-
     for (int idx = start_idx; idx < end_idx; ++idx) {
         float local_sum = 0.0f;
         int t2_idx = candidates[idx];
         int offset2 = t2_idx * n;
 
+        // 【修改点 2】：直接从全局内存 (Global Memory) 读取 t1_batch 和 t2_batch
+        // 现代 GPU 的 L1 缓存会自动处理同一 Block 内多线程对同一地址的合并访问
         for (int i = tid; i < n; i += blockDim.x) {
-
-            float2 p1 = s_t1[i];
-
+            float2 p1 = t1_batch[offset1 + i];
             float2 p2 = t2_batch[offset2 + i];
 
             float dx = p1.x - p2.x;
@@ -60,6 +57,7 @@ __global__ void euclidean_rtree_csr_kernel_shared(const float2* t1_batch, const 
             local_sum += dx * dx + dy * dy;
         }
 
+        // 归约求和逻辑保持不变
         float warp_sum = warpReduceSum(local_sum);
         if (lane_id == 0) shared_warp_sums[warp_id] = warp_sum;
         __syncthreads();
@@ -107,11 +105,16 @@ void execute_rtree_csr_kernel_on_gpu(const Point* h_t1, const Point* h_t2,
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-    size_t shared_mem_bytes = n * sizeof(float2);
-
-    euclidean_rtree_csr_kernel_shared << <num_t, 256, shared_mem_bytes >> > ((const float2*)d_t1, (const float2*)d_t2,
+    // 【修改点 3】：不再计算 shared_mem_bytes，直接启动 Kernel
+    euclidean_rtree_csr_kernel_global << <num_t, 256 >> > ((const float2*)d_t1, (const float2*)d_t2,
         d_candidates, d_offsets, d_results, num_t, n);
-    cudaGetLastError();
+
+    // 【修改点 4】：加入严格的错误拦截与打印！这非常重要！
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "\n[严重错误] CUDA Kernel 启动或执行失败: " << cudaGetErrorString(err) << std::endl;
+        std::cerr << "请检查 n 是否导致显存溢出，或者 Block 配置是否合法。\n" << std::endl;
+    }
 
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);

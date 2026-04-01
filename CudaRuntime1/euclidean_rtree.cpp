@@ -15,6 +15,8 @@ typedef bg::model::point<float, 2, bg::cs::cartesian> BgPoint;
 typedef bg::model::box<BgPoint> BgBox;
 typedef std::pair<BgBox, int> RTreeValue;
 
+// 注意：改成固定找10个后，CPU端其实就不再需要这个函数了，因为真实距离全部交给GPU算了。
+// 但为了保持代码完整性，这里依然保留。
 inline double calc_exact_dist_sq(const Point* t1_pts, const Point* t2_pts, int n) {
     double sum_sq = 0.0;
     for (int j = 0; j < n; j++) {
@@ -31,6 +33,7 @@ void launch_euclidean_batch_gpu_rtree_exact(const Point* h_t1, const Point* h_t2
     std::vector<BgBox> mbrs_t1(num_t);
     std::vector<RTreeValue> rtree_data_t2(num_t);
 
+    // 计算 t1 的 MBR
 #pragma omp parallel for
     for (int i = 0; i < num_t; i++) {
         float min_x = h_t1[i * n].x, max_x = h_t1[i * n].x;
@@ -42,6 +45,7 @@ void launch_euclidean_batch_gpu_rtree_exact(const Point* h_t1, const Point* h_t2
         mbrs_t1[i] = BgBox(BgPoint(min_x, min_y), BgPoint(max_x, max_y));
     }
 
+    // 计算 t2 的 MBR
 #pragma omp parallel for
     for (int k = 0; k < num_t; k++) {
         float min_x = h_t2[k * n].x, max_x = h_t2[k * n].x;
@@ -57,48 +61,30 @@ void launch_euclidean_batch_gpu_rtree_exact(const Point* h_t1, const Point* h_t2
 
     std::vector<std::vector<int>> all_candidates(num_t);
 
-
+    // 【核心修改区域】：直接使用 KNN 查询获取最近的 10 个候选者
 #pragma omp parallel for
     for (int i = 0; i < num_t; i++) {
-        double tight_upper_bound = std::numeric_limits<double>::max();
-        int offset1 = i * n;
+        // 防止数据总量不到 10 个导致越界
+        unsigned int k_candidates = std::min(50, num_t);
 
-        // 步骤 1：找最近的 1 个，定出精确卡尺 (这部分极快，保留)
-        auto query_first = rtree.qbegin(bgi::nearest(mbrs_t1[i], 1));
-        if (query_first != rtree.qend()) {
-            int first_k = query_first->second;
-            tight_upper_bound = calc_exact_dist_sq(&h_t1[offset1], &h_t2[first_k * n], n);
-        }
+        // 预分配空间，提高 vector 性能
+        all_candidates[i].reserve(k_candidates);
 
-        // 步骤 2：生成膨胀搜索框
-        all_candidates[i].reserve(32); // 预分配减少内存开销
-        float radius = (float)std::sqrt(tight_upper_bound);
+        // R 树直接查询 MBR 距离最近的 10 个候选者
+        auto query_it = rtree.qbegin(bgi::nearest(mbrs_t1[i], k_candidates));
 
-        float min_x = mbrs_t1[i].min_corner().get<0>();
-        float min_y = mbrs_t1[i].min_corner().get<1>();
-        float max_x = mbrs_t1[i].max_corner().get<0>();
-        float max_y = mbrs_t1[i].max_corner().get<1>();
-
-        BgBox search_box(BgPoint(min_x - radius, min_y - radius), BgPoint(max_x + radius, max_y + radius));
-
-        // 步骤 3：直接范围相交查询，暴打 Priority Queue
-        std::vector<RTreeValue> returned_values;
-        rtree.query(bgi::intersects(search_box), std::back_inserter(returned_values));
-
-        // 步骤 4：对捞出来的框做最后一遍卡尺精筛
-        for (const auto& val : returned_values) {
-            double mbr_dist_sq = bg::comparable_distance(mbrs_t1[i], val.first);
-            if (mbr_dist_sq <= tight_upper_bound) {
-                all_candidates[i].push_back(val.second);
-            }
+        for (; query_it != rtree.qend(); ++query_it) {
+            // 直接把捞出来的轨迹索引塞进候选名单
+            all_candidates[i].push_back(query_it->second);
         }
     }
 
+    // 将嵌套的 candidates 数组展平为 CSR 格式，准备传给 GPU
     std::vector<int> h_offsets(num_t + 1, 0);
     for (int i = 0; i < num_t; i++) {
-        // 修复 size_t 到 int 的警告
         h_offsets[i + 1] = h_offsets[i] + static_cast<int>(all_candidates[i].size());
     }
+
     int total_candidates = h_offsets.back();
     std::vector<int> h_flat_candidates(total_candidates);
 
@@ -107,6 +93,7 @@ void launch_euclidean_batch_gpu_rtree_exact(const Point* h_t1, const Point* h_t2
         std::copy(all_candidates[i].begin(), all_candidates[i].end(), h_flat_candidates.begin() + h_offsets[i]);
     }
 
+    // 调用 GPU Kernel，计算这 10 个候选者的真实欧式距离并取最小值
     execute_rtree_csr_kernel_on_gpu(h_t1, h_t2, h_flat_candidates.data(), h_offsets.data(), h_results, num_t, n, total_candidates, gpu_time);
 
     auto stop_all = std::chrono::high_resolution_clock::now();
