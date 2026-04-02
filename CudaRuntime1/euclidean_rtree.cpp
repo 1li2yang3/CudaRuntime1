@@ -15,17 +15,6 @@ typedef bg::model::point<float, 2, bg::cs::cartesian> BgPoint;
 typedef bg::model::box<BgPoint> BgBox;
 typedef std::pair<BgBox, int> RTreeValue;
 
-// 注意：改成固定找10个后，CPU端其实就不再需要这个函数了，因为真实距离全部交给GPU算了。
-// 但为了保持代码完整性，这里依然保留。
-inline double calc_exact_dist_sq(const Point* t1_pts, const Point* t2_pts, int n) {
-    double sum_sq = 0.0;
-    for (int j = 0; j < n; j++) {
-        double dx = (double)t1_pts[j].x - (double)t2_pts[j].x;
-        double dy = (double)t1_pts[j].y - (double)t2_pts[j].y;
-        sum_sq += (dx * dx) + (dy * dy);
-    }
-    return sum_sq;
-}
 
 void launch_euclidean_batch_gpu_rtree_exact(const Point* h_t1, const Point* h_t2, float* h_results, int num_t, int n, float& gpu_time) {
     auto start_all = std::chrono::high_resolution_clock::now();
@@ -45,7 +34,7 @@ void launch_euclidean_batch_gpu_rtree_exact(const Point* h_t1, const Point* h_t2
         mbrs_t1[i] = BgBox(BgPoint(min_x, min_y), BgPoint(max_x, max_y));
     }
 
-    // 计算 t2 的 MBR
+	// 计算 t2 的 MBR 和索引
 #pragma omp parallel for
     for (int k = 0; k < num_t; k++) {
         float min_x = h_t2[k * n].x, max_x = h_t2[k * n].x;
@@ -61,16 +50,16 @@ void launch_euclidean_batch_gpu_rtree_exact(const Point* h_t1, const Point* h_t2
 
     std::vector<std::vector<int>> all_candidates(num_t);
 
-    // 【核心修改区域】：直接使用 KNN 查询获取最近的 10 个候选者
+    // 直接使用 KNN 查询获取最近的 k 个候选者
 #pragma omp parallel for
     for (int i = 0; i < num_t; i++) {
-        // 防止数据总量不到 10 个导致越界
+        // 防止数据总量不到 k 个导致越界
         unsigned int k_candidates = std::min(50, num_t);
 
         // 预分配空间，提高 vector 性能
         all_candidates[i].reserve(k_candidates);
 
-        // R 树直接查询 MBR 距离最近的 10 个候选者
+        // R 树直接查询 MBR 距离最近的 k 个候选者
         auto query_it = rtree.qbegin(bgi::nearest(mbrs_t1[i], k_candidates));
 
         for (; query_it != rtree.qend(); ++query_it) {
@@ -93,12 +82,12 @@ void launch_euclidean_batch_gpu_rtree_exact(const Point* h_t1, const Point* h_t2
         std::copy(all_candidates[i].begin(), all_candidates[i].end(), h_flat_candidates.begin() + h_offsets[i]);
     }
 
-    // 调用 GPU Kernel，计算这 10 个候选者的真实欧式距离并取最小值
+    // 调用 GPU Kernel，计算这 k 个候选者的真实欧式距离并取最小值
     execute_rtree_csr_kernel_on_gpu(h_t1, h_t2, h_flat_candidates.data(), h_offsets.data(), h_results, num_t, n, total_candidates, gpu_time);
 
     auto stop_all = std::chrono::high_resolution_clock::now();
     std::chrono::duration<float, std::milli> duration = stop_all - start_all;
 
-    std::cout << "计算时间占比: " << gpu_time / duration.count() << std::endl;
-    gpu_time = duration.count();
+    std::cout << "计算时间占比: " << gpu_time / duration.count();
+	gpu_time = duration.count();// 返回总耗时
 }

@@ -4,9 +4,9 @@
 #include <cuda_runtime.h>
 #include <cuda_fp16.h> 
 #include <iostream>
-#include <cfloat> // 引入 FLT_MAX
+#include <cfloat> 
 
-// Warp 级别的规约求和 (保留，这个极其高效)
+// Warp 级别的规约求和
 __inline__ __device__ float warpReduceSum(float val) {
     for (int offset = warpSize / 2; offset > 0; offset /= 2) {
         val += __shfl_down_sync(0xffffffff, val, offset);
@@ -14,24 +14,17 @@ __inline__ __device__ float warpReduceSum(float val) {
     return val;
 }
 
-// 【修改点 1】：重命名为 global 版本，去除动态 shared memory 依赖
 __global__ void euclidean_rtree_csr_kernel_global(const float2* t1_batch, const float2* t2_batch,
-    const int* candidates, const int* offsets,
-    float* results, int num_t, int n)
+    const int* candidates, const int* offsets,float* results, int num_t, int n)
 {
     int tid = threadIdx.x;
     int bid = blockIdx.x;
-
     if (bid >= num_t) return;
 
-    // 【删除】：extern __shared__ float2 s_t1[]; 以及对应的预加载循环
-
     int offset1 = bid * n;
-
     float min_dist_sq = FLT_MAX;
 
-    // 注意：这里依然保留了一点点 shared memory 用于 Warp 间的通信归约。
-    // 但这个大小是固定的 (32 * 4 = 128 字节)，连 1KB 都不到，绝对不可能引发超限报错。
+    // shared memory 用于 Warp 间的通信归约
     static __shared__ float shared_warp_sums[32];
 
     int warp_id = tid / warpSize;
@@ -46,7 +39,6 @@ __global__ void euclidean_rtree_csr_kernel_global(const float2* t1_batch, const 
         int t2_idx = candidates[idx];
         int offset2 = t2_idx * n;
 
-        // 【修改点 2】：直接从全局内存 (Global Memory) 读取 t1_batch 和 t2_batch
         // 现代 GPU 的 L1 缓存会自动处理同一 Block 内多线程对同一地址的合并访问
         for (int i = tid; i < n; i += blockDim.x) {
             float2 p1 = t1_batch[offset1 + i];
@@ -105,11 +97,9 @@ void execute_rtree_csr_kernel_on_gpu(const Point* h_t1, const Point* h_t2,
     cudaEventCreate(&stop);
     cudaEventRecord(start);
 
-    // 【修改点 3】：不再计算 shared_mem_bytes，直接启动 Kernel
     euclidean_rtree_csr_kernel_global << <num_t, 256 >> > ((const float2*)d_t1, (const float2*)d_t2,
         d_candidates, d_offsets, d_results, num_t, n);
 
-    // 【修改点 4】：加入严格的错误拦截与打印！这非常重要！
     cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess) {
         std::cerr << "\n[严重错误] CUDA Kernel 启动或执行失败: " << cudaGetErrorString(err) << std::endl;

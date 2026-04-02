@@ -95,8 +95,8 @@ void generate_similar_trajectories_nm(const std::vector<Point>& t1_batch, std::v
 
 
 void test_euclidean_2() {
-    const int num_t = 5000;
-    const int n = 5000;
+    const int num_t = 500;//5000 5000会到100x
+    const int n = 500;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results(num_t);
@@ -289,7 +289,7 @@ int main() {
     srand(time(NULL));
     
     
-    //test_euclidean_2();
+    test_euclidean_2();
 
     //test_hausdorff();
 
@@ -297,7 +297,7 @@ int main() {
    
     //test_lcss();
     
-    test_frechet();
+    //test_frechet();
     
 
     return 0;
