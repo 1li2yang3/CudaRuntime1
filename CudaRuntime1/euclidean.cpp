@@ -100,7 +100,6 @@ float launch_euclidean_batch_cpu_rtree(const Point* h_t1, const Point* h_t2, flo
         double min_exact_dist_sq = std::numeric_limits<double>::max();
         int offset1 = i * n;
 
-        // 【修改点】：设定最多只找 10 个候选者。
         // 使用 std::min 是为了防止总轨迹数(num_t)本身还不到10条时发生越界错误
         unsigned int k_candidates = std::min(50, num_t);
 
