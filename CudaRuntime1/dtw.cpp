@@ -36,13 +36,13 @@ float launch_dtw_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_result
     int K = std::min(10, num_t); // 提取前 10 名
 
 #pragma omp parallel for
-    for (int i = 0; i < num_t; i++) {
+	for (int i = 0; i < num_t; i++) {//对于每一个 t1，计算它与所有 t2 的距离，并找出最小的那个
         int offset1 = i * n;
 
         // --- 第一步：LB_Keogh 过滤计算 ---
         std::vector<std::pair<float, int>> lb_dists(num_t); // 存储 <LB距离, t2索引>
 
-        for (int j = 0; j < num_t; j++) {
+		for (int j = 0; j < num_t; j++) {//对于当前 t1，计算它与所有 t2 的 LB_Keogh 距离
             int offset2 = j * m;
             float lb_dist = 0.0f;
 

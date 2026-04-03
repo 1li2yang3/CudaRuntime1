@@ -98,7 +98,6 @@ __global__ void lcss_refine_kernel_m_1(const Point* __restrict__ t1_raw, const P
 
                 val = max(left_val, up_val);
             }
-
             s_diagonals_flat[curr_buf * n + idx] = val;
         }
         __syncthreads();

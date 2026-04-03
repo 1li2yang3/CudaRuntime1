@@ -79,9 +79,6 @@ float launch_lcss_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_resul
         for (int k = 0; k < K; k++) {
             int t2_idx = ub_scores[k].second;
             int offset2 = t2_idx * m;
-
-
-            // 这会大大增加 CPU 的 new/delete 内存分配开销，显著拖慢 CPU 速度
             std::vector<std::vector<int>> dp(n + 1, std::vector<int>(m + 1, 0));
 
             // 精确 LCSS 的 DP 过程

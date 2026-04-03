@@ -6,21 +6,13 @@
 #include <omp.h> 
 #include <iostream>
 
-
-// ==========================================
-// 1. 结构体定义 (加了 Frechet 前缀防冲突)
-// ==========================================
 struct FrechetEnvelope {
     float min_x, max_x, min_y, max_y;
 };
 
-// ==========================================
-// 2. CPU 严格下界过滤+精算 主函数
-// ==========================================
 float launch_frechet_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_results, int num_t, int n, int m) {
     auto start = std::chrono::high_resolution_clock::now();
 
-    // --- 阶段 A: 预计算 h_t1 的 2D 包络线 (Window r=5) ---
     int r = 5;
     std::vector<FrechetEnvelope> envs(num_t * n);
 

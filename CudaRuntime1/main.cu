@@ -43,9 +43,9 @@ void generate_base_trajectories(std::vector<Point>& t1_batch, int num_t, int n) 
     for (int k = 0; k < num_t; ++k) {
         int offset = k * n;
 
-        // 让所有轨迹的起点都在地图中心附近，避免一开始就飞出边界
-        t1_batch[offset].x = 50.0f;
-        t1_batch[offset].y = 50.0f;
+        // 随机化起点，使其均匀分布在 0-100 的地图范围内
+        t1_batch[offset].x = (static_cast<float>(rand()) / RAND_MAX) * 100.0f;
+        t1_batch[offset].y = (static_cast<float>(rand()) / RAND_MAX) * 100.0f;
 
         for (int i = 1; i < n; ++i) {
             // 每次最多移动 [-1.0, 1.0] 的距离
@@ -213,7 +213,7 @@ void test_dtw() {
 
 
 void test_lcss() {
-    const int num_t = 100; 
+    const int num_t = 150; 
     const int n = 1000;       
     const int m = 1200;
     const float epsilon = 0.5f; 
@@ -289,9 +289,9 @@ int main() {
     srand(time(NULL));
     
     
-    //test_euclidean_2();
+    test_euclidean_2();
 
-    test_hausdorff();
+    //test_hausdorff();
 
     //test_dtw();
    
