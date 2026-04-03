@@ -6,9 +6,6 @@
 #include <cuda_fp16.h>
 #include <iostream>
 
-
-
-// 你的原有核心算法（保持不变，它在Block级别完全同步，可以在循环中被安全调用）
 __device__ float compute_directed_hausdorff(const float2* A, const float2* B, int lenA, int lenB) {
     __shared__ float2 s_B[256];
     __shared__ float s_global_max;
@@ -83,7 +80,7 @@ __device__ float compute_directed_hausdorff(const float2* A, const float2* B, in
     return s_global_max;
 }
 
-// 新的 Kernel：每个 Block 处理一条 T1 轨迹，并遍历其对应的 top_k 个 T2 候选者
+// 每个 Block 处理一条 T1 轨迹，并遍历其对应的 top_k 个 T2 候选者
 __global__ void hausdorff_tiled_rtree_kernel(
     const Point* t1_batch, int num_t1, int n,
     const Point* t2_batch, int num_t2, int m,

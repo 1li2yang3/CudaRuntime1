@@ -39,7 +39,7 @@ __global__ void euclidean_rtree_csr_kernel_global(const float2* t1_batch, const 
         int t2_idx = candidates[idx];
         int offset2 = t2_idx * n;
 
-        // 现代 GPU 的 L1 缓存会自动处理同一 Block 内多线程对同一地址的合并访问
+        // 自动处理同一 Block 内多线程对同一地址的合并访问
         for (int i = tid; i < n; i += blockDim.x) {
             float2 p1 = t1_batch[offset1 + i];
             float2 p2 = t2_batch[offset2 + i];
