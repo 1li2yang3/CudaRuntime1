@@ -30,7 +30,6 @@ inline double calc_exact_dist_sq(const Point* t1_pts, const Point* t2_pts, int n
         double dx = (double)t1_pts[j].x - (double)t2_pts[j].x;
         double dy = (double)t1_pts[j].y - (double)t2_pts[j].y;
         sum_sq += std::pow(dx, 2) + std::pow(dy, 2);
-        
         // 如果在累加过程中，部分距离的平方已经大于或等于当前的最小距离平方，
         // 说明这条轨迹不可能成为新的最近轨迹，直接提前返回，不再计算后续的点。
         if (sum_sq >= current_min_sq) {
@@ -48,7 +47,7 @@ float launch_euclidean_batch_cpu_rtree(const Point* h_t1, const Point* h_t2, flo
     // 存储 h_t2 的 MBR 及其对应的索引，用于构建 R 树
     std::vector<RTreeValue> rtree_data_t2(num_t);
 
-    // 第一步：多线程并行计算 h_t1 中所有轨迹的 MBR (最小外接矩形)
+    // 计算 h_t1 中所有轨迹的 MBR 
 #pragma omp parallel for
     for (int i = 0; i < num_t; i++) {
         // 初始化外接矩形的边界为轨迹的第一个点
@@ -64,7 +63,7 @@ float launch_euclidean_batch_cpu_rtree(const Point* h_t1, const Point* h_t2, flo
         mbrs_t1[i] = BgBox(BgPoint(min_x, min_y), BgPoint(max_x, max_y));
     }
 
-    // 第二步：多线程并行计算 h_t2 中所有轨迹的 MBR，并与其索引打包
+    // 计算 h_t2 中所有轨迹的 MBR，并与其索引打包
 #pragma omp parallel for
     for (int k = 0; k < num_t; k++) {
         float min_x = h_t2[k * n].x, max_x = h_t2[k * n].x;
@@ -78,8 +77,7 @@ float launch_euclidean_batch_cpu_rtree(const Point* h_t1, const Point* h_t2, flo
         rtree_data_t2[k] = std::make_pair(BgBox(BgPoint(min_x, min_y), BgPoint(max_x, max_y)), k);
     }
 
-    // 第三步：使用 h_t2 的 MBR 数据构建 R 树 (采用 quadratic 分裂算法，节点容量设为16)
-    // R树可以极大地加速空间最近邻查询
+    // 使用 h_t2 的 MBR 数据构建 R 树
     bgi::rtree<RTreeValue, bgi::quadratic<16>> rtree(rtree_data_t2.begin(), rtree_data_t2.end());
 
     // 第四步：多线程并行查询 R 树（仅寻找最近的10个候选者）
@@ -91,7 +89,7 @@ float launch_euclidean_batch_cpu_rtree(const Point* h_t1, const Point* h_t2, flo
         // 使用 std::min 是为了防止总轨迹数(num_t)本身还不到10条时发生越界错误
         unsigned int k_candidates = std::min(50, num_t);
 
-        // R树会直接替你筛选出 MBR 距离最近的 k 个结果
+        // R树直接筛选出 MBR 距离最近的 k 个结果
         auto query_it = rtree.qbegin(bgi::nearest(mbrs_t1[i], k_candidates));
 
         for (; query_it != rtree.qend(); ++query_it) {

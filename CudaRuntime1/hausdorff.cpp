@@ -51,7 +51,6 @@ inline float compute_directed_hausdorff(const Point* source, int len_source, con
             int cx_max = cx0 + r;
             int cy_min = cy0 - r;
             int cy_max = cy0 + r;
-
             for (int cy = cy_min; cy <= cy_max; cy++) {
                 for (int cx = cx_min; cx <= cx_max; cx++) {
 

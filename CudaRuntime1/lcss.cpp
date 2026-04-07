@@ -51,17 +51,17 @@ float launch_lcss_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_resul
             int possible_matches = 0; // 记录可能的最大匹配点数
 
             for (int v = 0; v < m; v++) {
-                int env_idx = v * n / m; // 长度映射
+                int env_idx = v * n / m; 
                 Point p2 = h_t2[offset2 + v];
                 LCSSEnvelope env = envs[offset1 + env_idx];
 
 
                 if (p2.x > env.min_x - epsilon && p2.x < env.max_x + epsilon &&
                     p2.y > env.min_y - epsilon && p2.y < env.max_y + epsilon) {
-                    possible_matches++; // 若在区域内，代表它"有可能"成为最终的一个匹配点
+                    possible_matches++; // 若在区域内，代表有可能成为匹配点
                 }
             }
-            // 转化为相似度比例上界
+            // 转化为相似度比例
             float ub_similarity = (float)possible_matches / min_len;
             ub_scores[j] = { ub_similarity, j };
         }

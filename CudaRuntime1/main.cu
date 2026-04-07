@@ -289,7 +289,7 @@ int main() {
     srand(time(NULL));
     
     
-    test_euclidean_2();
+    //test_euclidean_2();
 
     //test_hausdorff();
 
@@ -297,7 +297,7 @@ int main() {
    
     //test_lcss();
     
-    //test_frechet();
+    test_frechet();
     
 
     return 0;

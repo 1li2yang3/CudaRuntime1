@@ -39,7 +39,7 @@ float launch_dtw_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_result
 	for (int i = 0; i < num_t; i++) {//对于每一个 t1，计算它与所有 t2 的距离，并找出最小的那个
         int offset1 = i * n;
 
-        // --- 第一步：LB_Keogh 过滤计算 ---
+        // LB_Keogh 过滤计算
         std::vector<std::pair<float, int>> lb_dists(num_t); // 存储 <LB距离, t2索引>
 
 		for (int j = 0; j < num_t; j++) {//对于当前 t1，计算它与所有 t2 的 LB_Keogh 距离
@@ -47,7 +47,7 @@ float launch_dtw_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_result
             float lb_dist = 0.0f;
 
             for (int v = 0; v < m; v++) {
-                int env_idx = v * n / m; // 长度映射
+                int env_idx = v * n / m;
                 Point p2 = h_t2[offset2 + v];
                 Envelope env = envs[offset1 + env_idx];
 
@@ -58,7 +58,7 @@ float launch_dtw_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_result
             lb_dists[j] = { lb_dist, j };
         }
 
-        // --- 第二步：提取 Top-10 候选者 ---
+        // 提取候选者
         std::partial_sort(lb_dists.begin(), lb_dists.begin() + K, lb_dists.end());
 
         // --- 第三步：针对选出的 10 名候选者，进行精确 DTW 计算 ---
@@ -76,7 +76,7 @@ float launch_dtw_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_result
             std::fill(prev_row.begin(), prev_row.end(), 1e20f);
             prev_row[0] = 0.0f;
 
-            // 精确 DTW 的 DP 过程
+            //  DTW 的 DP 过程
             for (int u = 1; u <= n; u++) {
                 curr_row[0] = 1e20f; // dp[u][0] 总是无穷大
 
