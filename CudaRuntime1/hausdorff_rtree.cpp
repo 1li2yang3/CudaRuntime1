@@ -68,14 +68,16 @@ float run_hausdorff_rtree_gpu_pipeline(const Point* h_t1, int num_t1, int n,
         }
     }
 
-    auto stop_cpu = std::chrono::high_resolution_clock::now();
-    float rtree_time = std::chrono::duration<float, std::milli>(stop_cpu - start_cpu).count();
+    
     
     float gpu_time = 0.0f;
-    launch_hausdorff_rtree_gpu(h_t1, num_t1, n,
-        h_t2, num_t2, m,
-        candidate_indices.data(), top_k,
-        h_results, gpu_time);
 
-    return rtree_time + gpu_time;
+    launch_hausdorff_rtree_gpu(h_t1, num_t1, n,h_t2, num_t2, m,candidate_indices.data(), top_k,h_results, gpu_time);
+
+    auto stop_cpu = std::chrono::high_resolution_clock::now();
+
+    float rtree_time = std::chrono::duration<float, std::milli>(stop_cpu - start_cpu).count();
+    std::cout << "\n计算时间占比: " << gpu_time / rtree_time;
+    //gpu_time = rtree_time;
+    return rtree_time;
 }

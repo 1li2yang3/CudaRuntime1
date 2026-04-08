@@ -181,6 +181,6 @@ void launch_hausdorff_rtree_gpu(const Point* h_t1, int num_t1, int n,
     cudaEventDestroy(start_all);
     cudaEventDestroy(stop_all);
 
-    std::cout << "\n计算时间占比: " << gpu_time / time_all;
-    gpu_time = time_all;
+    //std::cout << "\n计算时间占比: " << gpu_time / time_all;
+    //gpu_time = time_all;
 }

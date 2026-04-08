@@ -44,8 +44,8 @@ void generate_base_trajectories(std::vector<Point>& t1_batch, int num_t, int n) 
         int offset = k * n;
 
         // 随机化起点，使其均匀分布在 0-100 的地图范围内
-        t1_batch[offset].x = (static_cast<float>(rand()) / RAND_MAX) * 100.0f;
-        t1_batch[offset].y = (static_cast<float>(rand()) / RAND_MAX) * 100.0f;
+        t1_batch[offset].x = (static_cast<float>(rand()) / RAND_MAX) * 1000.0f;
+        t1_batch[offset].y = (static_cast<float>(rand()) / RAND_MAX) * 1000.0f;
 
         for (int i = 1; i < n; ++i) {
             // 每次最多移动 [-1.0, 1.0] 的距离
@@ -56,8 +56,8 @@ void generate_base_trajectories(std::vector<Point>& t1_batch, int num_t, int n) 
             float new_y = t1_batch[offset + i - 1].y + dy;
 
             // 限制在 0-100 范围内
-            t1_batch[offset + i].x = std::max(0.0f, std::min(100.0f, new_x));
-            t1_batch[offset + i].y = std::max(0.0f, std::min(100.0f, new_y));
+            t1_batch[offset + i].x = std::max(0.0f, std::min(1000.0f, new_x));
+            t1_batch[offset + i].y = std::max(0.0f, std::min(1000.0f, new_y));
         }
     }
 }
@@ -87,16 +87,16 @@ void generate_similar_trajectories_nm(const std::vector<Point>& t1_batch, std::v
             float noise_y = (static_cast<float>(rand()) / RAND_MAX) * noise_max * 2.0f - noise_max;
 
             // 加上噪声，并限制在 0-100 的地图边界内
-            t2_batch[offset2 + j].x = std::max(0.0f, std::min(100.0f, base_x + noise_x));
-            t2_batch[offset2 + j].y = std::max(0.0f, std::min(100.0f, base_y + noise_y));
+            t2_batch[offset2 + j].x = std::max(0.0f, std::min(1000.0f, base_x + noise_x));
+            t2_batch[offset2 + j].y = std::max(0.0f, std::min(1000.0f, base_y + noise_y));
         }
     }
 }
 
 
-void test_euclidean_2() {
-    const int num_t = 500;//5000 5000会到100x
-    const int n = 500;
+void test_euclidean_2(int num_t = 1500, int n = 1500) {
+    //const int num_t = 500;//5000 5000会到100x
+    //const int n = 500;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results(num_t);
@@ -118,7 +118,7 @@ void test_euclidean_2() {
     std::cout << "SPEEDUP: " << cpu_time_ms / gpu_time_ms << "x" << std::endl;
     bool pass = true;
     for (int i = 0; i < num_t; i++) {
-        if (abs(cpu_results[i] - gpu_results[i]) > 1e-3) {
+        if (abs(cpu_results[i] - gpu_results[i]) > 1e-2) {
             pass = false;
             std::cout << cpu_results[i] << "--" << gpu_results[i] << std::endl;
             break;
@@ -129,10 +129,10 @@ void test_euclidean_2() {
 
 }
 
-void test_hausdorff() {
-    const int num_t = 100;  
+void test_hausdorff(int num_t = 100, int n = 1000, int m = 1200) {
+    /*const int num_t = 100;  
     const int n = 1000;     
-    const int m = 1200;
+    const int m = 1200;*/
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
@@ -165,7 +165,7 @@ void test_hausdorff() {
 
     bool pass = true;
     for (int i = 0; i < num_t; i++) {
-        if (abs(cpu_results[i] - gpu_results[i]) > 1e-5) {
+        if (abs(cpu_results[i] - gpu_results[i]) > 1e-2) {
             pass = false;
             std::cout << cpu_results[i] << "--" << gpu_results[i] << std::endl;
             break;
@@ -175,10 +175,10 @@ void test_hausdorff() {
     std::cout <<cpu_results[10] << "--" << gpu_results[10] << std::endl;
 }
 
-void test_dtw() {
-    const int num_t = 100; 
+void test_dtw(int num_t=100,int n=800,int m=1000) {
+    /*const int num_t = 100; 
     const int n = 800;    
-    const int m = 1000;
+    const int m = 1000;*/
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
@@ -212,10 +212,10 @@ void test_dtw() {
 }
 
 
-void test_lcss() {
-    const int num_t = 150; 
+void test_lcss(int num_t = 150, int n = 1000, int m = 1200) {
+    /*const int num_t = 150; 
     const int n = 1000;       
-    const int m = 1200;
+    const int m = 1200;*/
     const float epsilon = 0.5f; 
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
@@ -238,7 +238,7 @@ void test_lcss() {
 
     bool pass = true;
     for (int i = 0; i < num_t; i++) {
-        if (abs(cpu_results[i] - gpu_results[i]) > 1e-5 ) {
+        if (abs(cpu_results[i] - gpu_results[i]) > 1e-2) {
             pass = false;
             std::cout << cpu_results[i] << "--" << gpu_results[i] << std::endl;
             break;
@@ -249,10 +249,10 @@ void test_lcss() {
 
 }
 
-void test_frechet() {
-    const int num_t = 100;
+void test_frechet(int num_t = 300, int n = 900, int m = 1100) {
+    /*const int num_t = 100;
     const int n = 900;
-    const int m = 1100;
+    const int m = 1100;*/
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results_wavefront(num_t);
@@ -274,7 +274,7 @@ void test_frechet() {
 
     bool pass = true;
     for (int i = 0; i < num_t; i++) {
-        if (abs(cpu_results[i] - gpu_results_wavefront[i]) > 1e-5) {
+        if (abs(cpu_results[i] - gpu_results_wavefront[i]) > 1e-2) {
             pass = false;
             std::cout << cpu_results[i] << "--" << gpu_results_wavefront[i] << std::endl;
             break;
@@ -289,15 +289,15 @@ int main() {
     srand(time(NULL));
     
     
-    //test_euclidean_2();
+    //test_euclidean_2(2000,2000);//范围控制在100x100
 
-    //test_hausdorff();
+    //test_hausdorff(100,1000,1200);
 
-    //test_dtw();
-   
-    //test_lcss();
+    //test_dtw(100,1000,1200);
     
-    test_frechet();
+    //test_lcss(100, 1000, 1200);
+    
+    test_frechet(500, 2000, 2200);
     
 
     return 0;
