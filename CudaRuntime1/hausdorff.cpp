@@ -148,7 +148,7 @@ float launch_hausdorff_batch_cpu_rtree(const Point* h_t1, int num_t1, int n,
         rtree_entries.push_back(std::make_pair(mbr, i));
     }
 
-    // 使用 quadratic 算法构建 R-tree（批量插入性能更好）
+    // 使用 quadratic 算法构建 R-tree
     bgi::rtree<rtree_value, bgi::quadratic<16>> rtree(rtree_entries);
 
     // 2. 并行查询与精确计算

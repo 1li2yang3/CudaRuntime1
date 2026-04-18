@@ -8,36 +8,6 @@
 #include "frechet.cuh"
 #include <thread>
 
-//void generate_random_points(std::vector<Point>& host_vec) {
-//
-//    for (auto& p : host_vec) {
-//        p.x = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 100.0f));
-//        p.y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 100.0f));
-//    }
-//}
-//void generate_random_points(std::vector<Point>& host_vec) {
-//    if (host_vec.empty()) return;
-//
-//    // 1. 生成第一个点 (在 0 到 100 内随机)
-//    host_vec[0].x = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 100.0f));
-//    host_vec[0].y = static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / 100.0f));
-//
-//    // 2. 从第二个点开始，基于前一个点进行偏移
-//    for (size_t i = 1; i < host_vec.size(); ++i) {
-//        // 生成 [-0.5, 0.5] 范围内的随机偏移量
-//        // (rand() / RAND_MAX) 生成 0~1 的数，乘以 1.0 然后减去 0.5 得到 -0.5~0.5
-//        float dx = (static_cast<float>(rand()) / RAND_MAX) * 1.0f - 0.5f;
-//        float dy = (static_cast<float>(rand()) / RAND_MAX) * 1.0f - 0.5f;
-//
-//        // 计算新坐标
-//        float new_x = host_vec[i - 1].x + dx;
-//        float new_y = host_vec[i - 1].y + dy;
-//
-//        // 3. 边界处理：确保点始终在 [0, 100] 的范围内 (Clamp操作)
-//        host_vec[i].x = std::max(0.0f, std::min(100.0f, new_x));
-//        host_vec[i].y = std::max(0.0f, std::min(100.0f, new_y));
-//    }
-//}
 
 void generate_base_trajectories(std::vector<Point>& t1_batch, int num_t, int n) {
     for (int k = 0; k < num_t; ++k) {
@@ -289,7 +259,7 @@ int main() {
     srand(time(NULL));
     
     
-    //test_euclidean_2(2000,2000);//范围控制在100x100
+    test_euclidean_2(2000,2000);//100x100
 
     //test_hausdorff(100,1000,1200);
 
@@ -297,7 +267,7 @@ int main() {
     
     //test_lcss(100, 1000, 1200);
     
-    test_frechet(500, 2000, 2200);
+    //test_frechet(100, 1000, 1200);
     
 
     return 0;

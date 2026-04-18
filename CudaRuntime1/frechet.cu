@@ -34,7 +34,7 @@ __global__ void frechet_lb_filter_kernel(const FrechetEnvelope* envs_t1, const P
         float dy = fmaxf(0.0f, fmaxf(env.min_y - p2.y, p2.y - env.max_y));
         float current_dist = sqrtf(dx * dx + dy * dy);
 
-        // 【关键修改】：取整个过程中的最大值，作为严格的 Fréchet 下界
+        // 取整个过程中的最大值，作为严格的 Fréchet 下界
         lb_dist = fmaxf(lb_dist, current_dist);
     }
     lb_matrix[t1_idx * num_t + t2_idx] = lb_dist;
@@ -124,7 +124,7 @@ void launch_frechet_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, fl
     CHECK(cudaEventCreate(&stop_all));
     CHECK(cudaEventRecord(start_all));
 
-    // --- 阶段 A: CPU 端快速生成包络线 (Window r=5) ---
+    // --- 阶段 A: CPU 端快速生成包络线 ( r=5) ---
     int r = 5;
     std::vector<FrechetEnvelope> h_envs(num_t * n);
 #pragma omp parallel for

@@ -11,7 +11,7 @@
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/rtree.hpp>
 
-// Boost.Geometry 命名空间别名与类型定义
+
 namespace bg = boost::geometry;
 namespace bgi = boost::geometry::index;
 // 定义二维笛卡尔坐标系下的点类型

@@ -184,7 +184,7 @@ void launch_lcss_batch_gpu_wavefront_knn(const Point* h_t1, const Point* h_t2, f
             row[j] = { h_ub_matrix[i * num_t + j], j };
         }
 
-        // 【核心修改】：LCSS上界代表可能的最大相似度，越大越有潜力。所以用降序排序
+        // LCSS上界代表可能的最大相似度，越大越有潜力。所以用降序排序
         std::partial_sort(row.begin(), row.begin() + K, row.end(),
             [](const std::pair<float, int>& a, const std::pair<float, int>& b) {
                 return a.first > b.first;
