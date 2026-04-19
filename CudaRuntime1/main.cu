@@ -9,13 +9,13 @@
 #include <thread>
 
 
-void generate_base_trajectories(std::vector<Point>& t1_batch, int num_t, int n) {
+void generate_base_trajectories(std::vector<Point>& t1_batch, int num_t, int n ,float r=1000.0f) {
     for (int k = 0; k < num_t; ++k) {
         int offset = k * n;
 
         // 随机化起点，使其均匀分布在 0-100 的地图范围内
-        t1_batch[offset].x = (static_cast<float>(rand()) / RAND_MAX) * 1000.0f;
-        t1_batch[offset].y = (static_cast<float>(rand()) / RAND_MAX) * 1000.0f;
+        t1_batch[offset].x = (static_cast<float>(rand()) / RAND_MAX) * r;
+        t1_batch[offset].y = (static_cast<float>(rand()) / RAND_MAX) * r;
 
         for (int i = 1; i < n; ++i) {
             // 每次最多移动 [-1.0, 1.0] 的距离
@@ -25,14 +25,14 @@ void generate_base_trajectories(std::vector<Point>& t1_batch, int num_t, int n) 
             float new_x = t1_batch[offset + i - 1].x + dx;
             float new_y = t1_batch[offset + i - 1].y + dy;
 
-            // 限制在 0-100 范围内
-            t1_batch[offset + i].x = std::max(0.0f, std::min(1000.0f, new_x));
-            t1_batch[offset + i].y = std::max(0.0f, std::min(1000.0f, new_y));
+            // 限制在 0-r 范围内
+            t1_batch[offset + i].x = std::max(0.0f, std::min(r, new_x));
+            t1_batch[offset + i].y = std::max(0.0f, std::min(r, new_y));
         }
     }
 }
 void generate_similar_trajectories_nm(const std::vector<Point>& t1_batch, std::vector<Point>& t2_batch,
-    int num_t, int n, int m, float noise_max) {
+    int num_t, int n, int m, float noise_max, float r=1000.0f) {
     for (int k = 0; k < num_t; ++k) {
         int offset1 = k * n; // t1 的偏移量按 n 计算
         int offset2 = k * m; // t2 的偏移量按 m 计算
@@ -56,9 +56,9 @@ void generate_similar_trajectories_nm(const std::vector<Point>& t1_batch, std::v
             float noise_x = (static_cast<float>(rand()) / RAND_MAX) * noise_max * 2.0f - noise_max;
             float noise_y = (static_cast<float>(rand()) / RAND_MAX) * noise_max * 2.0f - noise_max;
 
-            // 加上噪声，并限制在 0-100 的地图边界内
-            t2_batch[offset2 + j].x = std::max(0.0f, std::min(1000.0f, base_x + noise_x));
-            t2_batch[offset2 + j].y = std::max(0.0f, std::min(1000.0f, base_y + noise_y));
+            // 加上噪声，并限制在 0-r 的地图边界内
+            t2_batch[offset2 + j].x = std::max(0.0f, std::min(r, base_x + noise_x));
+            t2_batch[offset2 + j].y = std::max(0.0f, std::min(r, base_y + noise_y));
         }
     }
 }
@@ -73,9 +73,9 @@ void test_euclidean_2(int num_t = 1500, int n = 1500) {
     std::vector<float> cpu_results(num_t);
     /*generate_random_points(h_t1);
     generate_random_points(h_t2);*/
-    generate_base_trajectories(h_t1, num_t, n);
+    generate_base_trajectories(h_t1, num_t, n ,100.0f);
     float noise_max = 2.0f;
-    generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, n, noise_max);
+    generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, n, noise_max, 100.0f);
 
     float cpu_time_ms = launch_euclidean_batch_cpu_rtree(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n);
     float gpu_time_ms = 0;
@@ -259,11 +259,11 @@ int main() {
     srand(time(NULL));
     
     
-    test_euclidean_2(2000,2000);//100x100
+    //test_euclidean_2(5000,5000);
 
     //test_hausdorff(100,1000,1200);
 
-    //test_dtw(100,1000,1200);
+    test_dtw(100,1000,1200);
     
     //test_lcss(100, 1000, 1200);
     
