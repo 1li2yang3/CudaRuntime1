@@ -35,12 +35,12 @@ float launch_frechet_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_re
     // 提取前 10 名
     int K = std::min(10, num_t);
 
-    // --- 阶段 B & C & D: 并行处理每条 h_t1 轨迹 ---
+    // 并行处理每条 h_t1 轨迹 
 #pragma omp parallel for schedule(static)
     for (int i = 0; i < num_t; i++) {
         int offset1 = i * n;
 
-        // --- 步骤 1：包络线严格下界过滤计算 ---
+        // 步骤 1：包络线严格下界过滤计算
         std::vector<std::pair<float, int>> lb_dists(num_t); // <下界最大距离, t2索引>
 
         for (int j = 0; j < num_t; j++) {
@@ -62,11 +62,11 @@ float launch_frechet_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_re
             lb_dists[j] = { lb_dist, j };
         }
 
-        // --- 步骤 2：提取 Top-10 严格下界最小的候选者 ---
+        // 提取 Top-10 严格下界最小的候选者
         // 下界越小，真实的 Fréchet 距离才有可能小
         std::partial_sort(lb_dists.begin(), lb_dists.begin() + K, lb_dists.end());
 
-        // --- 步骤 3：对这 10 个候选者进行精确 Fréchet 计算 ---
+        // 对这 10 个候选者进行精确 Fréchet 计算
         float min_frechet = 1e20f; // Fréchet 是距离度量，越小越好，初始赋无穷大
 
         auto calc_dist = [](const Point& p1, const Point& p2) {
@@ -115,7 +115,7 @@ float launch_frechet_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_re
             }
         }
 
-        // --- 步骤 4：写入最小 Fréchet 距离结果 ---
+        // 写入最小 Fréchet 距离结果
         h_results[i] = min_frechet;
     }
 

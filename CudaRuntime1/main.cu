@@ -65,14 +65,10 @@ void generate_similar_trajectories_nm(const std::vector<Point>& t1_batch, std::v
 
 
 void test_euclidean_2(int num_t = 1500, int n = 1500) {
-    //const int num_t = 500;//5000 5000会到100x
-    //const int n = 500;
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * n);
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
-    /*generate_random_points(h_t1);
-    generate_random_points(h_t2);*/
     generate_base_trajectories(h_t1, num_t, n ,100.0f);
     float noise_max = 2.0f;
     generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, n, noise_max, 100.0f);
@@ -100,15 +96,10 @@ void test_euclidean_2(int num_t = 1500, int n = 1500) {
 }
 
 void test_hausdorff(int num_t = 100, int n = 1000, int m = 1200) {
-    /*const int num_t = 100;  
-    const int n = 1000;     
-    const int m = 1200;*/
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
-    /*generate_random_points(h_t1);
-    generate_random_points(h_t2);*/
     generate_base_trajectories(h_t1, num_t, n);
     float noise_max = 2.0f;
     generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, m, noise_max);
@@ -117,9 +108,7 @@ void test_hausdorff(int num_t = 100, int n = 1000, int m = 1200) {
         h_t1.data(), num_t, n,
         h_t2.data(), num_t, m,
         cpu_results.data()
-        // top_k 默认是 10，所以可以不传
     );
-
     
     float gpu_time_ms_total = run_hausdorff_rtree_gpu_pipeline(
         h_t1.data(), num_t, n,
@@ -146,15 +135,10 @@ void test_hausdorff(int num_t = 100, int n = 1000, int m = 1200) {
 }
 
 void test_dtw(int num_t=100,int n=800,int m=1000) {
-    /*const int num_t = 100; 
-    const int n = 800;    
-    const int m = 1000;*/
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
-    /*generate_random_points(h_t1);
-    generate_random_points(h_t2);*/
     generate_base_trajectories(h_t1, num_t, n);
     float noise_max = 2.0f;
     generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, m, noise_max);
@@ -183,16 +167,11 @@ void test_dtw(int num_t=100,int n=800,int m=1000) {
 
 
 void test_lcss(int num_t = 150, int n = 1000, int m = 1200) {
-    /*const int num_t = 150; 
-    const int n = 1000;       
-    const int m = 1200;*/
     const float epsilon = 0.5f; 
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results(num_t);
     std::vector<float> cpu_results(num_t);
-    /*generate_random_points(h_t1);
-    generate_random_points(h_t2);*/
     generate_base_trajectories(h_t1, num_t, n);
     float noise_max = 2.0f;
     generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, m, noise_max);
@@ -220,19 +199,14 @@ void test_lcss(int num_t = 150, int n = 1000, int m = 1200) {
 }
 
 void test_frechet(int num_t = 300, int n = 900, int m = 1100) {
-    /*const int num_t = 100;
-    const int n = 900;
-    const int m = 1100;*/
     std::vector<Point> h_t1(num_t * n);
     std::vector<Point> h_t2(num_t * m);
     std::vector<float> gpu_results_wavefront(num_t);
     std::vector<float> cpu_results(num_t);
-    /*generate_random_points(h_t1);
-    generate_random_points(h_t2);*/
     generate_base_trajectories(h_t1, num_t, n);
     float noise_max = 2.0f;
     generate_similar_trajectories_nm(h_t1, h_t2, num_t, n, m, noise_max);
-    //传入参数前对轨迹长度进行判断，h1是较短的一条，n<=m
+    //h1是较短的一条，n<=m
     float cpu_time = launch_frechet_batch_cpu(h_t1.data(), h_t2.data(), cpu_results.data(), num_t, n , m);
     float gpu_time_wavefront = 0;
     launch_frechet_batch_gpu_wavefront(h_t1.data(), h_t2.data(), gpu_results_wavefront.data(), num_t, n , m , gpu_time_wavefront);
@@ -258,24 +232,16 @@ void test_frechet(int num_t = 300, int n = 900, int m = 1100) {
 int main() {
     srand(time(NULL));
     
-    
     //test_euclidean_2(5000,5000);
 
-    //test_hausdorff(100,1000,1200);
+    //test_hausdorff(300,1000,1200);
 
-    test_dtw(100,1000,1200);
+    //test_dtw(100,1000,1200);
     
     //test_lcss(100, 1000, 1200);
     
-    //test_frechet(100, 1000, 1200);
+    test_frechet(100, 1000, 1200);
     
 
     return 0;
 }
-//反对角线的矩阵是如下格式：从左上到右下
-//  j
-//i 1 1 1 1 1
-//  1 1 1 1 1
-//  1 1 1 1 1
-//  1 1 1 1 1
-//  1 1 1 1 1

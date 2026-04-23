@@ -80,7 +80,7 @@ float launch_euclidean_batch_cpu_rtree(const Point* h_t1, const Point* h_t2, flo
     // 使用 h_t2 的 MBR 数据构建 R 树
     bgi::rtree<RTreeValue, bgi::quadratic<16>> rtree(rtree_data_t2.begin(), rtree_data_t2.end());
 
-    // 第四步：多线程并行查询 R 树（仅寻找最近的10个候选者）
+    // 多线程并行查询 R 树（仅寻找最近的10个候选者）
 #pragma omp parallel for
     for (int i = 0; i < num_t; i++) {
         double min_exact_dist_sq = std::numeric_limits<double>::max();

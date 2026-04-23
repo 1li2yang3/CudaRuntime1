@@ -13,7 +13,7 @@ struct Envelope {
     float min_x, max_x, min_y, max_y;
 };
 
-// 极速 LB_Keogh 过滤 Kernel
+// LB_Keogh 过滤 Kernel
 __global__ void lb_keogh_filter_kernel(const Envelope* envs_t1, const Point* t2_raw,
     float* lb_matrix, int num_t, int n, int m) {
     int t1_idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -142,7 +142,7 @@ void launch_dtw_batch_gpu_knn(const Point* h_t1, const Point* h_t2, float* h_res
     cudaEventCreate(&start_gpu); cudaEventCreate(&stop_gpu);
     float time_lb = 0.0f, time_dtw = 0.0f;
 
-    // --- 阶段 B: 运行 LB_Keogh 粗筛 Kernel ---
+    // 运行 LB_Keogh 粗筛 Kernel 
     cudaEventRecord(start_gpu);
     dim3 block_lb(16, 16);
     dim3 grid_lb((num_t + block_lb.x - 1) / block_lb.x, (num_t + block_lb.y - 1) / block_lb.y);
@@ -157,7 +157,7 @@ void launch_dtw_batch_gpu_knn(const Point* h_t1, const Point* h_t2, float* h_res
     cudaFree(d_envs);
     cudaFree(d_lb_matrix);
 
-    // --- 阶段 C: CPU 端提取前 10 名候选对 ---
+    // CPU 端提取前 10 名候选对
     int K = std::min(10, num_t);
     int num_pairs = num_t * K;
     std::vector<int2> h_pair_list(num_pairs);
@@ -175,7 +175,7 @@ void launch_dtw_batch_gpu_knn(const Point* h_t1, const Point* h_t2, float* h_res
         }
     }
 
-    // --- 阶段 D: 运行精确 DTW Kernel 进行 Refine ---
+    // 运行精确 DTW Kernel 进行 Refine
     int2* d_pair_list;
     float* d_dtw_results;
     CHECK(cudaMalloc(&d_pair_list, num_pairs * sizeof(int2)));
@@ -197,14 +197,14 @@ void launch_dtw_batch_gpu_knn(const Point* h_t1, const Point* h_t2, float* h_res
     // 累加 GPU 纯内核计算时间赋给传出参数
     gpu_time = time_lb + time_dtw;
 
-    // --- 阶段 E: 写回最终的唯一结果 ---
+    // 写回最终的唯一结果
     std::vector<float> h_dtw_results(num_pairs);
     CHECK(cudaMemcpy(h_dtw_results.data(), d_dtw_results, num_pairs * sizeof(float), cudaMemcpyDeviceToHost));
 
 #pragma omp parallel for
     for (int i = 0; i < num_t; i++) {
         float min_dtw = 1e20f;
-        // int best_index = -1;  // <--- 如果以后需要索引用这个记录
+        // int best_index = -1;  // 如果以后需要索引用这个记录
 
         // 遍历当前 t1 的 10 个精确计算结果，找出最小值
         for (int k = 0; k < K; k++) {
@@ -218,7 +218,7 @@ void launch_dtw_batch_gpu_knn(const Point* h_t1, const Point* h_t2, float* h_res
         h_results[i] = min_dtw;
     }
 
-    // --- 清理与统计 ---
+    // 清理与统计
     cudaFree(d_t1); cudaFree(d_t2);
     cudaFree(d_pair_list); cudaFree(d_dtw_results);
     cudaEventDestroy(start_gpu); cudaEventDestroy(stop_gpu);

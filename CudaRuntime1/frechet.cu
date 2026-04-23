@@ -124,7 +124,7 @@ void launch_frechet_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, fl
     CHECK(cudaEventCreate(&stop_all));
     CHECK(cudaEventRecord(start_all));
 
-    // --- 阶段 A: CPU 端快速生成包络线 ( r=5) ---
+    // CPU 端快速生成包络线 
     int r = 5;
     std::vector<FrechetEnvelope> h_envs(num_t * n);
 #pragma omp parallel for
@@ -162,7 +162,7 @@ void launch_frechet_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, fl
     cudaEventCreate(&start_gpu); cudaEventCreate(&stop_gpu);
     float time_lb = 0.0f, time_frechet = 0.0f;
 
-    // --- 阶段 B: 运行过滤 Kernel，得出严格下界矩阵 ---
+    // 运行过滤 Kernel，得出严格下界矩阵
     cudaEventRecord(start_gpu);
     dim3 block_lb(16, 16);
     dim3 grid_lb((num_t + block_lb.x - 1) / block_lb.x, (num_t + block_lb.y - 1) / block_lb.y);
@@ -177,7 +177,7 @@ void launch_frechet_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, fl
     cudaFree(d_envs);
     cudaFree(d_lb_matrix);
 
-    // --- 阶段 C: 提取下界距离最小的 Top-10 候选对 ---
+    // 提取下界距离最小的 Top-10 候选对 
     int K = std::min(10, num_t);
     int num_pairs = num_t * K;
     std::vector<int2> h_pair_list(num_pairs);
@@ -195,7 +195,7 @@ void launch_frechet_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, fl
         }
     }
 
-    // --- 阶段 D: 运行精确 Frechet Kernel 进行 Refine ---
+    // 运行精确 Frechet Kernel 进行 Refine 
     int2* d_pair_list;
     float* d_frechet_results;
     CHECK(cudaMalloc(&d_pair_list, num_pairs * sizeof(int2)));
@@ -216,7 +216,7 @@ void launch_frechet_batch_gpu_wavefront(const Point* h_t1, const Point* h_t2, fl
 
     gpu_time = time_lb + time_frechet;
 
-    // --- 阶段 E: 写回最终结果 (Frechet是距离，取最小值) ---
+    // 写回最终结果 (Frechet是距离，取最小值)
     std::vector<float> h_frechet_results(num_pairs);
     CHECK(cudaMemcpy(h_frechet_results.data(), d_frechet_results, num_pairs * sizeof(float), cudaMemcpyDeviceToHost));
 

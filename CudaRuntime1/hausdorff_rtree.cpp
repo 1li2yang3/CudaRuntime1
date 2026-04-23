@@ -78,6 +78,6 @@ float run_hausdorff_rtree_gpu_pipeline(const Point* h_t1, int num_t1, int n,
 
     float rtree_time = std::chrono::duration<float, std::milli>(stop_cpu - start_cpu).count();
     std::cout << "\n计算时间占比: " << gpu_time / rtree_time;
-    //gpu_time = rtree_time;
+
     return rtree_time;
 }

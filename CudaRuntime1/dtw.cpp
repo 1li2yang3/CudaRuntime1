@@ -61,7 +61,7 @@ float launch_dtw_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_result
         // 提取候选者
         std::partial_sort(lb_dists.begin(), lb_dists.begin() + K, lb_dists.end());
 
-        // --- 第三步：针对选出的 10 名候选者，进行精确 DTW 计算 ---
+        // 针对选出的 10 名候选者，进行精确 DTW 计算 ---
         float min_dtw = 1e20f;
 
 
@@ -104,7 +104,7 @@ float launch_dtw_batch_cpu(const Point* h_t1, const Point* h_t2, float* h_result
             }
         }
 
-        // --- 第四步：写入最终最小值 ---
+        // 写入最终最小值 ---
         h_results[i] = min_dtw;
     }
 

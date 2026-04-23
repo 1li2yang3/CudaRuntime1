@@ -119,7 +119,7 @@ void launch_lcss_batch_gpu_wavefront_knn(const Point* h_t1, const Point* h_t2, f
     CHECK(cudaEventCreate(&stop_all));
     CHECK(cudaEventRecord(start_all));
 
-    // --- 阶段 A: CPU 端快速生成包络线 (Window r=5) ---
+    //CPU 端快速生成包络线
     int r = 5;
     std::vector<Envelope> h_envs(num_t * n);
 #pragma omp parallel for
@@ -157,7 +157,7 @@ void launch_lcss_batch_gpu_wavefront_knn(const Point* h_t1, const Point* h_t2, f
     cudaEventCreate(&start_gpu); cudaEventCreate(&stop_gpu);
     float time_lb = 0.0f, time_lcss = 0.0f;
 
-    // --- 阶段 B: 运行过滤 Kernel (使用严格上界方法，需传入 epsilon) ---
+    // 运行过滤 Kernel (使用严格上界方法，需传入 epsilon) 
     cudaEventRecord(start_gpu);
     dim3 block_lb(16, 16);
     dim3 grid_lb((num_t + block_lb.x - 1) / block_lb.x, (num_t + block_lb.y - 1) / block_lb.y);
@@ -172,7 +172,7 @@ void launch_lcss_batch_gpu_wavefront_knn(const Point* h_t1, const Point* h_t2, f
     cudaFree(d_envs);
     cudaFree(d_ub_matrix);
 
-    // --- 阶段 C: 提取上界相似度最大的 Top-10 候选对 ---
+    // 提取上界相似度最大的 Top-10 候选对 
     int K = std::min(10, num_t);
     int num_pairs = num_t * K;
     std::vector<int2> h_pair_list(num_pairs);
@@ -195,7 +195,7 @@ void launch_lcss_batch_gpu_wavefront_knn(const Point* h_t1, const Point* h_t2, f
         }
     }
 
-    // --- 阶段 D: 运行精确 LCSS Kernel 进行 Refine ---
+    // 运行精确 LCSS Kernel 进行 Refine
     int2* d_pair_list;
     float* d_lcss_results;
     CHECK(cudaMalloc(&d_pair_list, num_pairs * sizeof(int2)));
@@ -214,7 +214,7 @@ void launch_lcss_batch_gpu_wavefront_knn(const Point* h_t1, const Point* h_t2, f
 
     gpu_time = time_lb + time_lcss;
 
-    // --- 阶段 E: 写回最终结果 (LCSS是越大越好) ---
+    // 写回最终结果 (LCSS是越大越好)
     std::vector<float> h_lcss_results(num_pairs);
     CHECK(cudaMemcpy(h_lcss_results.data(), d_lcss_results, num_pairs * sizeof(float), cudaMemcpyDeviceToHost));
 
